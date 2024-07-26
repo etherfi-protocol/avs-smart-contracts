@@ -6,7 +6,6 @@ import "../src/eigenlayer-interfaces/IBLSApkRegistry.sol";
 import "../src/eigenlayer-libraries/BN254.sol";
 import "../src/eigenlayer-interfaces/IEigenPod.sol";
 import "../src/eigenlayer-libraries/BeaconChainProofs.sol";
-import "./ProofParsing.sol";
 
 import "../src/AvsOperator.sol";
 import "../src/AvsOperatorManager.sol";
@@ -16,102 +15,16 @@ import "forge-std/Test.sol";
 import "forge-std/console2.sol";
 
 
-contract EtherFiAvsOperatorsManagerTest is Test, ProofParsing {
+contract EtherFiAvsOperatorsManagerTest is Test {
 
     AvsOperatorManager avsOperatorManager;
     address admin;
     address operatorOneRunner;
     address operatorTwoRunner;
-    
+
     IBLSApkRegistry.PubkeyRegistrationParams samplePubkeyRegistrationParams;
     ISignatureUtils.SignatureWithSaltAndExpiry sampleRegistrationSignature;
 
-    function testBalancUpdateProof() public {
-        initializeRealisticFork(MAINNET_FORK);
-
-        IEigenPod eigenpod = IEigenPod(0x4F9E701a972CE90789FbbA4DE3ADF0753597568f);
-
-        setJSON("test/mainnet_balance_update_proof_1393176_1718473883.json");
-
-        uint64 oracleTimestamp = 1718473883;
-        uint40[] memory validatorIndices = new uint40[](1);
-        validatorIndices[0] = 1393176;
-
-        BeaconChainProofs.StateRootProof memory stateRootProofStruct = _getStateRootProof();
-
-        bytes[] memory validatorFieldsProofArray = new bytes[](1);
-        validatorFieldsProofArray[0] = abi.encodePacked(getValidatorProof());
-
-        bytes32[][] memory validatorFieldsArray = new bytes32[][](1);
-        validatorFieldsArray[0] = getValidatorFields();
-
-        eigenpod.verifyBalanceUpdates(
-            oracleTimestamp,
-            validatorIndices,
-            stateRootProofStruct,
-            validatorFieldsProofArray,
-            validatorFieldsArray
-        );
-
-    }
-
-        /*
-                function verifyBalanceUpdates(
-        uint64 oracleTimestamp,
-        uint40[] calldata validatorIndices,
-        BeaconChainProofs.StateRootProof calldata stateRootProof,
-        bytes[] calldata validatorFieldsProofs,
-        bytes32[][] calldata validatorFields
-    ) external onlyWhenNotPaused(PAUSED_EIGENPODS_VERIFY_BALANCE_UPDATE) {
-        */
-
-
-    function testEigenlayer() public {
-        initializeRealisticFork(MAINNET_FORK);
-
-        IEigenPod eigenpod = IEigenPod(0xafd81A1f8062a383F9D5e067af3a6EB5F5171024);
-
-        // setup proof
-        //setJSON("test/mainnet_withdrawal_proof_1052563.json");
-        setJSON("test/mainnet_withdrawal_proof_369_1052563_1713873719.json");
-        //setJSON("test/mainnet_withdrawal_proof_369_1052563_1714616915.json");
-
-        BeaconChainProofs.WithdrawalProof[] memory withdrawalProofsArray = new BeaconChainProofs.WithdrawalProof[](1);
-        withdrawalProofsArray[0] = _getWithdrawalProof();
-        bytes[] memory validatorFieldsProofArray = new bytes[](1);
-
-        validatorFieldsProofArray[0] = abi.encodePacked(getValidatorProof());
-        bytes32[][] memory validatorFieldsArray = new bytes32[][](1);
-        validatorFieldsArray[0] = getValidatorFields();
-        bytes32[][] memory withdrawalFieldsArray = new bytes32[][](1);
-        withdrawalFieldsArray[0] = getWithdrawalFields();
-
-        BeaconChainProofs.StateRootProof memory stateRootProofStruct = _getStateRootProof();
-
-        uint64 oracleTimestamp = 1715097119;
-
-        eigenpod.verifyAndProcessWithdrawals(
-            oracleTimestamp,
-            stateRootProofStruct,
-            withdrawalProofsArray,
-            validatorFieldsProofArray,
-            validatorFieldsArray,
-            withdrawalFieldsArray
-        );
-
-        console2.logBytes(
-            abi.encodeWithSelector(
-                eigenpod.verifyAndProcessWithdrawals.selector, 
-                oracleTimestamp, 
-                stateRootProofStruct, 
-                withdrawalProofsArray,
-                validatorFieldsProofArray,
-                validatorFieldsArray,
-                withdrawalFieldsArray
-            )
-        );
-
-    }
 
     function setUp() public {
         admin = vm.addr(0x9876543210);
