@@ -134,7 +134,7 @@ contract EtherFiAvsOperatorsManagerTest is Test {
 
         // initialize beacon implementation with garbage
         AvsOperator(newBeaconImpl).initialize(address(0x123456));
-        
+
         // after garbage initialization
         address managerAddress3 = operator.avsOperatorsManager();
 
@@ -199,6 +199,9 @@ contract EtherFiAvsOperatorsManagerTest is Test {
         require(success, "Call failed");
 
         avsOperatorManager.upgradeEtherFiAvsOperator(address(new AvsOperator()));
+
+        avsOperatorManager.updateAdmin(admin, true);
+
         vm.stopPrank();
     }
 
@@ -279,6 +282,60 @@ contract EtherFiAvsOperatorsManagerTest is Test {
         assertEq(previousOperator, updatedOperator);
         assertEq(previousNodeRunner, AvsOperator(updatedOperator).avsNodeRunner());
         assertEq(previousSigner, AvsOperator(updatedOperator).ecdsaSigner());
+    }
+
+    function test_registerWithWitnessChain() public {
+        initializeRealisticFork(MAINNET_FORK);
+        upgradeAvsContracts();
+
+        uint256 operatorId = 4;
+        AvsOperator operator = avsOperatorManager.avsOperators(operatorId);
+        address witnessHub = address(0xD25c2c5802198CB8541987b73A8db4c9BCaE5cC7);
+        IAVSDirectory avsDirectory = IAVSDirectory(address(0x135DDa560e946695d6f155dACaFC6f1F25C1F5AF));
+
+        bytes32 salt = bytes32(0x1234567890000000000000000000000000000000000000000000000000000000);
+        uint256 expiry = block.timestamp + 10000;
+
+        // 1. generate registration digest
+        bytes32 registrationDigest = avsDirectory.calculateOperatorAVSRegistrationDigestHash(
+            address(operator),
+            witnessHub,
+            salt,
+            expiry
+        );
+
+        // re-configure signer for testing
+        uint256 signerKey = 0x1234abcd;
+        {
+            address signer = vm.addr(signerKey);
+            vm.prank(admin);
+            avsOperatorManager.updateEcdsaSigner(operatorId, signer);
+        }
+
+        // 2. sign digest with configured signer
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, registrationDigest);
+
+        // 3. register to AVS
+        {
+            bytes memory signature = abi.encodePacked(r, s, v);
+            console2.logBytes(signature);
+
+            ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry = ISignatureUtils.SignatureWithSaltAndExpiry({
+                signature: signature,
+                salt: salt,
+                expiry: expiry
+            });
+
+            bytes4 selector = bytes4(keccak256(bytes("registerOperatorToAVS(address,(bytes,bytes32,uint256))")));
+            bytes memory data = abi.encodeWithSelector(selector, address(operator), signatureWithSaltAndExpiry);
+
+            vm.prank(address(operator));
+            (bool success, ) = address(witnessHub).call(data);
+            assertEq(success, true, "expected registerOperatorToAVS to succeed");
+        }
+
+        // 4. register a watchtower
+
     }
 
     function test_registerWithAltLayer() public {
