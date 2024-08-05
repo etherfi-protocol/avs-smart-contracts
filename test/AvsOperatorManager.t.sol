@@ -14,24 +14,17 @@ import "../src/AvsOperatorManager.sol";
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
 
-interface IWitnessOperatorRegistry {
-        function calculateWatchtowerRegistrationMessageHash(address operator, uint256 expiry) external returns (bytes32);
-        function registerWatchtowerAsOperator (address watchtower, uint256 expiry, bytes memory signedMessage) external;
-        function addToOperatorWhitelist (address[] memory operatorsList) external;
-        function owner() external returns (address);
-}
 
 contract EtherFiAvsOperatorsManagerTest is Test {
 
     AvsOperatorManager avsOperatorManager;
+
     address admin;
     address operatorOneRunner;
     address operatorTwoRunner;
 
     IBLSApkRegistry.PubkeyRegistrationParams samplePubkeyRegistrationParams;
     ISignatureUtils.SignatureWithSaltAndExpiry sampleRegistrationSignature;
-
-
 
     function setUp() public {
         admin = vm.addr(0x9876543210);
@@ -83,41 +76,11 @@ contract EtherFiAvsOperatorsManagerTest is Test {
     }
 
 
-    function testJson() public {
+    function test_parseBlsKey() public view {
         string memory jsonPath = "test/altlayer.bls-signature.json";
-        //string memory jsonBytes = vm.readFile(jsonPath);
-
-        //(uint256 g1x, uint256 g1y, uint256[2] memory g2x, uint256[2] memory g2y, uint256 sx, uint256 sy) = parseBlsKey(jsonBytes);
 
         IBLSApkRegistry.PubkeyRegistrationParams memory pkeyParams = parseBlsKey(jsonPath);
-        console2.log("hello");
-        console2.log(pkeyParams.pubkeyG1.X);
-
-        /*
-        G1Point memory pubkeySignaturePoint = G1Point({
-            X: sx,
-            Y: sy
-        });
-
-        G1Point memory pubkeyG1 = G1Point({
-            X: g1x,
-            Y: g1y
-        });
-
-        G2Point memory pubkeyG2 = G2Point({
-            X: g2x,
-            Y: g2y
-        });
-
-        PubkeyRegistrationParams memory samplePubkeyRegistrationParams = PubkeyRegistrationParams({
-            pubkeyRegistrationSignature: pubkeySignaturePoint,
-            pubkeyG1: pubkeyG1,
-            pubkeyG2: pubkeyG2
-        });
-        */
-
-        // Additional code to use samplePubkeyRegistrationParams
-
+        assert(pkeyParams.pubkeyG1.X != 0);
     }
 
     function test_proxyStorage() public {
@@ -292,95 +255,6 @@ contract EtherFiAvsOperatorsManagerTest is Test {
     }
 
 
-    // TODO(Dave) refactor in separate file with subfunctions
-    function test_registerWithWitnessChain() public {
-        initializeRealisticFork(MAINNET_FORK);
-        upgradeAvsContracts();
-
-        uint256 operatorId = 4;
-        AvsOperator operator = avsOperatorManager.avsOperators(operatorId);
-        address witnessHub = address(0xD25c2c5802198CB8541987b73A8db4c9BCaE5cC7);
-
-        uint256 expiry = block.timestamp + 10000;
-
-        // 1. generate registration digest
-        bytes32 registrationDigest;
-        {
-            bytes32 salt = bytes32(0x1234567890000000000000000000000000000000000000000000000000000000);
-            IAVSDirectory avsDirectory = IAVSDirectory(address(0x135DDa560e946695d6f155dACaFC6f1F25C1F5AF));
-
-            registrationDigest = avsDirectory.calculateOperatorAVSRegistrationDigestHash(
-                address(operator),
-                witnessHub,
-                salt,
-                expiry
-            );
-        }
-
-        // re-configure signer for testing
-        uint256 signerKey = 0x1234abcd;
-        {
-            address signer = vm.addr(signerKey);
-            vm.prank(admin);
-            avsOperatorManager.updateEcdsaSigner(operatorId, signer);
-        }
-
-
-        {
-            // 2. sign digest with configured signer
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, registrationDigest);
-
-            // 3. register to AVS
-            bytes memory signature = abi.encodePacked(r, s, v);
-            console2.logBytes(signature);
-
-            bytes32 salt = bytes32(0x1234567890000000000000000000000000000000000000000000000000000000);
-            ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry = ISignatureUtils.SignatureWithSaltAndExpiry({
-                signature: signature,
-                salt: salt,
-                expiry: expiry
-            });
-
-            bytes4 selector = bytes4(keccak256(bytes("registerOperatorToAVS(address,(bytes,bytes32,uint256))")));
-            bytes memory data = abi.encodeWithSelector(selector, address(operator), signatureWithSaltAndExpiry);
-
-            vm.prank(address(operator));
-            (bool success, ) = address(witnessHub).call(data);
-            assertEq(success, true, "expected registerOperatorToAVS to succeed");
-        }
-
-        {
-            // whitelist the operator
-            //IWitnessOperatorRegistry operatorRegistry = IWitnessOperatorRegistry(address(0xEf1a89841fd189ba28e780A977ca70eb1A5e985D));
-
-
-        }
-
-        // 4. register a watchtower
-        {
-            IWitnessOperatorRegistry operatorRegistry = IWitnessOperatorRegistry(address(0xEf1a89841fd189ba28e780A977ca70eb1A5e985D));
-            uint256 watchtowerPrivateKey = 0xfedc3210;
-            address watchtowerAddress = vm.addr(watchtowerPrivateKey);
-
-            bytes32 watchtowerRegistrationDigest = operatorRegistry.calculateWatchtowerRegistrationMessageHash(address(operator), expiry);
-            console2.logBytes32(watchtowerRegistrationDigest);
-
-            // 2. sign digest with watchtower key
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(watchtowerPrivateKey, watchtowerRegistrationDigest);
-        //    (uint8 v, bytes32 r, bytes32 s) = vm.sign(watchtowerPrivateKey, operatorRegistry.calculateWatchtowerRegistrationMessageHash(address(operator), expiry));
-            bytes memory signature = abi.encodePacked(r, s, v);
-
-            vm.prank(address(operator));
-            operatorRegistry.registerWatchtowerAsOperator(watchtowerAddress, expiry, signature);
-
-            // ensure we are now registered
-            vm.expectRevert("WitnessHub: Watchtower address already registered");
-            vm.prank(address(operator));
-            operatorRegistry.registerWatchtowerAsOperator(watchtowerAddress, expiry, signature);
-        }
-
-
-    }
 
     function test_registerWithAltLayer() public {
         initializeRealisticFork(MAINNET_FORK);
@@ -388,10 +262,7 @@ contract EtherFiAvsOperatorsManagerTest is Test {
 
         uint256 operatorId = 4;
 
-        address operatorAddress = address(avsOperatorManager.avsOperators(operatorId));
-
         address altLayerRegistryCoordinator = address(0x561be1AB42170a19f31645F774e6e3862B2139AA);
-        address brevisRegistryCoordinator = address(0x434621cfd8BcDbe8839a33c85aE2B2893a4d596C);
 
         IBLSApkRegistry.PubkeyRegistrationParams memory altLayerPubkeyParams = parseBlsKey("test/altlayer.bls-signature.json");
 
@@ -410,7 +281,7 @@ contract EtherFiAvsOperatorsManagerTest is Test {
         //IBLSApkRegistry.PubkeyRegistrationParams
 
 
-        BN254.G1Point memory h1 = IRegistryCoordinator(altLayerRegistryCoordinator).pubkeyRegistrationMessageHash(operatorAddress);
+      //  BN254.G1Point memory h1 = IRegistryCoordinator(altLayerRegistryCoordinator).pubkeyRegistrationMessageHash(operatorAddress);
        // BN254.G1Point memory h2 = IRegistryCoordinator(brevisRegistryCoordinator).pubkeyRegistrationMessageHash(operatorAddress);
         //console2.log("alt", h1.X, h1.Y);
        // console2.log("bre", h2.X, h2.Y);
