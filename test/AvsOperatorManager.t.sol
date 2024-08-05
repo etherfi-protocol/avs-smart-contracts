@@ -14,6 +14,12 @@ import "../src/AvsOperatorManager.sol";
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
 
+interface IWitnessOperatorRegistry {
+        function calculateWatchtowerRegistrationMessageHash(address operator, uint256 expiry) external returns (bytes32);
+        function registerWatchtowerAsOperator (address watchtower, uint256 expiry, bytes memory signedMessage) external;
+        function addToOperatorWhitelist (address[] memory operatorsList) external;
+        function owner() external returns (address);
+}
 
 contract EtherFiAvsOperatorsManagerTest is Test {
 
@@ -24,6 +30,7 @@ contract EtherFiAvsOperatorsManagerTest is Test {
 
     IBLSApkRegistry.PubkeyRegistrationParams samplePubkeyRegistrationParams;
     ISignatureUtils.SignatureWithSaltAndExpiry sampleRegistrationSignature;
+
 
 
     function setUp() public {
@@ -284,6 +291,8 @@ contract EtherFiAvsOperatorsManagerTest is Test {
         assertEq(previousSigner, AvsOperator(updatedOperator).ecdsaSigner());
     }
 
+
+    // TODO(Dave) refactor in separate file with subfunctions
     function test_registerWithWitnessChain() public {
         initializeRealisticFork(MAINNET_FORK);
         upgradeAvsContracts();
@@ -291,18 +300,22 @@ contract EtherFiAvsOperatorsManagerTest is Test {
         uint256 operatorId = 4;
         AvsOperator operator = avsOperatorManager.avsOperators(operatorId);
         address witnessHub = address(0xD25c2c5802198CB8541987b73A8db4c9BCaE5cC7);
-        IAVSDirectory avsDirectory = IAVSDirectory(address(0x135DDa560e946695d6f155dACaFC6f1F25C1F5AF));
 
-        bytes32 salt = bytes32(0x1234567890000000000000000000000000000000000000000000000000000000);
         uint256 expiry = block.timestamp + 10000;
 
         // 1. generate registration digest
-        bytes32 registrationDigest = avsDirectory.calculateOperatorAVSRegistrationDigestHash(
-            address(operator),
-            witnessHub,
-            salt,
-            expiry
-        );
+        bytes32 registrationDigest;
+        {
+            bytes32 salt = bytes32(0x1234567890000000000000000000000000000000000000000000000000000000);
+            IAVSDirectory avsDirectory = IAVSDirectory(address(0x135DDa560e946695d6f155dACaFC6f1F25C1F5AF));
+
+            registrationDigest = avsDirectory.calculateOperatorAVSRegistrationDigestHash(
+                address(operator),
+                witnessHub,
+                salt,
+                expiry
+            );
+        }
 
         // re-configure signer for testing
         uint256 signerKey = 0x1234abcd;
@@ -312,14 +325,16 @@ contract EtherFiAvsOperatorsManagerTest is Test {
             avsOperatorManager.updateEcdsaSigner(operatorId, signer);
         }
 
-        // 2. sign digest with configured signer
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, registrationDigest);
 
-        // 3. register to AVS
         {
+            // 2. sign digest with configured signer
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, registrationDigest);
+
+            // 3. register to AVS
             bytes memory signature = abi.encodePacked(r, s, v);
             console2.logBytes(signature);
 
+            bytes32 salt = bytes32(0x1234567890000000000000000000000000000000000000000000000000000000);
             ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry = ISignatureUtils.SignatureWithSaltAndExpiry({
                 signature: signature,
                 salt: salt,
@@ -334,7 +349,36 @@ contract EtherFiAvsOperatorsManagerTest is Test {
             assertEq(success, true, "expected registerOperatorToAVS to succeed");
         }
 
+        {
+            // whitelist the operator
+            //IWitnessOperatorRegistry operatorRegistry = IWitnessOperatorRegistry(address(0xEf1a89841fd189ba28e780A977ca70eb1A5e985D));
+
+
+        }
+
         // 4. register a watchtower
+        {
+            IWitnessOperatorRegistry operatorRegistry = IWitnessOperatorRegistry(address(0xEf1a89841fd189ba28e780A977ca70eb1A5e985D));
+            uint256 watchtowerPrivateKey = 0xfedc3210;
+            address watchtowerAddress = vm.addr(watchtowerPrivateKey);
+
+            bytes32 watchtowerRegistrationDigest = operatorRegistry.calculateWatchtowerRegistrationMessageHash(address(operator), expiry);
+            console2.logBytes32(watchtowerRegistrationDigest);
+
+            // 2. sign digest with watchtower key
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(watchtowerPrivateKey, watchtowerRegistrationDigest);
+        //    (uint8 v, bytes32 r, bytes32 s) = vm.sign(watchtowerPrivateKey, operatorRegistry.calculateWatchtowerRegistrationMessageHash(address(operator), expiry));
+            bytes memory signature = abi.encodePacked(r, s, v);
+
+            vm.prank(address(operator));
+            operatorRegistry.registerWatchtowerAsOperator(watchtowerAddress, expiry, signature);
+
+            // ensure we are now registered
+            vm.expectRevert("WitnessHub: Watchtower address already registered");
+            vm.prank(address(operator));
+            operatorRegistry.registerWatchtowerAsOperator(watchtowerAddress, expiry, signature);
+        }
+
 
     }
 
