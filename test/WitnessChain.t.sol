@@ -27,7 +27,7 @@ contract WitnessChainTest is EtherFiAvsOperatorsManagerTest {
         upgradeAvsContracts();
 
         // pick an arbitrary operator not currently registered
-        uint256 operatorId = 4;
+        uint256 operatorId = 2;
         AvsOperator operator = avsOperatorManager.avsOperators(operatorId);
 
         // re-configure signer for testing
@@ -55,6 +55,7 @@ contract WitnessChainTest is EtherFiAvsOperatorsManagerTest {
             // 2. sign digest with configured signer
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, registrationDigest);
 
+
             // 3. register to AVS
             bytes memory signature = abi.encodePacked(r, s, v);
             ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry = ISignatureUtils.SignatureWithSaltAndExpiry({
@@ -77,6 +78,7 @@ contract WitnessChainTest is EtherFiAvsOperatorsManagerTest {
             address watchtowerAddress = vm.addr(watchtowerPrivateKey);
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(watchtowerPrivateKey, watchtowerRegistrationDigest);
             bytes memory signature = abi.encodePacked(r, s, v);
+            console2.log("watchtowerAddress:", watchtowerAddress);
 
             // 3. register watchtower
             vm.prank(address(operator));
@@ -88,5 +90,6 @@ contract WitnessChainTest is EtherFiAvsOperatorsManagerTest {
             operatorRegistry.registerWatchtowerAsOperator(watchtowerAddress, expiry, signature);
         }
     }
+
 
 }
