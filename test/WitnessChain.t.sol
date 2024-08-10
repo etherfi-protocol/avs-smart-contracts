@@ -16,15 +16,14 @@ interface IWitnessHub {
     function registerOperatorToAVS(address operator, ISignatureUtils.SignatureWithSaltAndExpiry memory signature) external;
 }
 
-contract WitnessChainTest is EtherFiAvsOperatorsManagerTest {
+contract WitnessChainTest is TestSetup {
 
     // Mainnet
     IWitnessHub witnessHub = IWitnessHub(address(0xD25c2c5802198CB8541987b73A8db4c9BCaE5cC7));
     IWitnessOperatorRegistry operatorRegistry = IWitnessOperatorRegistry(address(0xEf1a89841fd189ba28e780A977ca70eb1A5e985D));
 
     function test_registerWithWitnessChain() public {
-        initializeRealisticFork(MAINNET_FORK);
-        upgradeAvsContracts();
+        initializeRealisticFork(MAINNET_FORK); upgradeAvsContracts();
 
         // pick an arbitrary operator not currently registered
         uint256 operatorId = 2;
