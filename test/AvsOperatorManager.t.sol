@@ -2,226 +2,75 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import "../src/eigenlayer-interfaces/IBLSApkRegistry.sol";
-import "../src/eigenlayer-libraries/BN254.sol";
-import "../src/eigenlayer-interfaces/IEigenPod.sol";
-import "../src/eigenlayer-libraries/BeaconChainProofs.sol";
+import "../test/BlsTestHelpers.t.sol";
+import "../test/TestSetup.sol";
 
 import "../src/AvsOperator.sol";
 import "../src/AvsOperatorManager.sol";
+import "../src/eigenlayer-libraries/BeaconChainProofs.sol";
+import "../src/eigenlayer-interfaces/IBLSApkRegistry.sol";
+import "../src/eigenlayer-libraries/BN254.sol";
+import "../src/eigenlayer-interfaces/IEigenPod.sol";
 
 
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
 
 
-contract EtherFiAvsOperatorsManagerTest is Test {
+contract EtherFiAvsOperatorsManagerTest is TestSetup, BlsTestHelper {
 
-    AvsOperatorManager avsOperatorManager;
-    address admin;
-    address operatorOneRunner;
-    address operatorTwoRunner;
-
-    IBLSApkRegistry.PubkeyRegistrationParams samplePubkeyRegistrationParams;
-    ISignatureUtils.SignatureWithSaltAndExpiry sampleRegistrationSignature;
-
-
-    function setUp() public {
-        admin = vm.addr(0x9876543210);
-        vm.startPrank(admin);
-
-        // deploy manager
-        AvsOperatorManager avsOperatorManagerImpl = new AvsOperatorManager();
-        ERC1967Proxy avvsOperatorManagerProxy = new ERC1967Proxy(address(avsOperatorManagerImpl), "");
-        avsOperatorManager = AvsOperatorManager(address(avvsOperatorManagerProxy));
-
-        // initialize manager
-        AvsOperator avsOperatorImpl = new AvsOperator();
-        address delegationManager = address(0x1234); // TODO
-        address avsDirectory = address(0x1235); // TODO
-        avsOperatorManager.initialize(delegationManager, avsDirectory, address(avsOperatorImpl));
-
-        // deploy a couple operators
-        avsOperatorManager.instantiateEtherFiAvsOperator(2);
-        operatorOneRunner = vm.addr(0x11111111);
-        operatorTwoRunner = vm.addr(0x22222222);
-        avsOperatorManager.updateAvsNodeRunner(1, operatorOneRunner);
-        avsOperatorManager.updateAvsNodeRunner(2, operatorTwoRunner);
-
-        // create an example bls pubkey and signature
-        BN254.G1Point memory pubkeySignaturePoint = BN254.G1Point({
-            X: 1737408473725330763843880782491037116654861901274329008829867944933220175236,
-            Y: 10158965556018911028664489354186772678118499821014905102777776384489118430367
-        });
-        BN254.G1Point memory pubkeyG1 = BN254.G1Point({
-            X: 1186892176333729259402566975799559819177585277458634869487759992514008184155,
-            Y: 1186713232830160640205163521286989504734698387173894963064166847355519910294
-        });
-        BN254.G2Point memory pubkeyG2 = BN254.G2Point({
-            X: [20373260592925970510436870156702493823059114246881996422295473156189283443836, 4874916298750258089447683583376932635557701511081659750045648280467126335967],
-            Y: [1296067449676727247175027892935715275166282239219407876021181432383944469412, 14487491035855367176460402597285327371990118432785320314384630667240256562505]
-        });
-        samplePubkeyRegistrationParams = IBLSApkRegistry.PubkeyRegistrationParams({
-            pubkeyRegistrationSignature: pubkeySignaturePoint,
-            pubkeyG1: pubkeyG1,
-            pubkeyG2: pubkeyG2
-        });
-        sampleRegistrationSignature = ISignatureUtils.SignatureWithSaltAndExpiry({
-            signature: hex"a2dd466c26df1884d824c5cee74e3e249b4f9027f718a60779c760981d52fa4515a47481a05bc06fb81f0feba71c56f2155fbfb890eac058fbc29bfa0ba5be3a1c",
-            salt: bytes32(0xa337bc4e9c416683d8ebcfd5261157ae5b7e6513ad364842cb1affaa281e6408),
-            expiry: 1744938796
-        });
-
-        vm.stopPrank();
-    }
-
-
-    function testJson() public {
-        string memory jsonPath = "test/altlayer.bls-signature.json";
-        //string memory jsonBytes = vm.readFile(jsonPath);
-
-        //(uint256 g1x, uint256 g1y, uint256[2] memory g2x, uint256[2] memory g2y, uint256 sx, uint256 sy) = parseBlsKey(jsonBytes);
-
-        IBLSApkRegistry.PubkeyRegistrationParams memory pkeyParams = parseBlsKey(jsonPath);
-        console2.log("hello");
-        console2.log(pkeyParams.pubkeyG1.X);
-
-        /*
-        G1Point memory pubkeySignaturePoint = G1Point({
-            X: sx,
-            Y: sy
-        });
-
-        G1Point memory pubkeyG1 = G1Point({
-            X: g1x,
-            Y: g1y
-        });
-
-        G2Point memory pubkeyG2 = G2Point({
-            X: g2x,
-            Y: g2y
-        });
-
-        PubkeyRegistrationParams memory samplePubkeyRegistrationParams = PubkeyRegistrationParams({
-            pubkeyRegistrationSignature: pubkeySignaturePoint,
-            pubkeyG1: pubkeyG1,
-            pubkeyG2: pubkeyG2
-        });
-        */
-
-        // Additional code to use samplePubkeyRegistrationParams
-
-    }
-
-    function test_proxyStorage() public {
+    function test_registerEigenda() public {
         initializeRealisticFork(MAINNET_FORK);
+        upgradeAvsContracts();
 
-        AvsOperator operator = avsOperatorManager.avsOperators(4);
-        address managerAddress = operator.avsOperatorsManager();
+        IRegistryCoordinator eigendaRegistryCoordinator = IRegistryCoordinator(address(0x0BAAc79acD45A023E19345c352d8a7a83C4e5656));
+        uint256 operatorId = 1;
+        address operator = address(avsOperatorManager.avsOperators(operatorId));
 
-        // deploy new versions and perform upgrades of both manager and operator
-        vm.startPrank(avsOperatorManager.owner());
-        bytes4 selector = bytes4(keccak256(bytes("upgradeTo(address)")));
-        bytes memory data = abi.encodeWithSelector(selector, address(new AvsOperatorManager()));
-        (bool success, ) = address(avsOperatorManager).call(data);
-        require(success, "Call failed");
-        address newBeaconImpl = address(new AvsOperator());
-        avsOperatorManager.upgradeEtherFiAvsOperator(newBeaconImpl);
-        vm.stopPrank();
-
-        // New contracts before initialization
-        address managerAddress2 = operator.avsOperatorsManager();
-
-        // initialize beacon implementation with garbage
-        AvsOperator(newBeaconImpl).initialize(address(0x123456));
-        
-        // after garbage initialization
-        address managerAddress3 = operator.avsOperatorsManager();
-
-        // Initialization had zero effect because proxies have independent storage
-        assertEq(managerAddress, managerAddress2);
-        assertEq(managerAddress2, managerAddress3);
-
-    }
-
-    function parseBlsKey(string memory filepath) internal view returns (IBLSApkRegistry.PubkeyRegistrationParams memory) {
-
-        string memory json = vm.readFile(filepath);
-
-        uint256 g1x = vm.parseJsonUint(json, ".g1.x");
-        uint256 g1y = vm.parseJsonUint(json, ".g1.y");
-        uint256[] memory g2xArray = vm.parseJsonUintArray(json, ".g2.x");
-        uint256[] memory g2yArray = vm.parseJsonUintArray(json, ".g2.y");
-        uint256 sx = vm.parseJsonUint(json, ".signature.x");
-        uint256 sy = vm.parseJsonUint(json, ".signature.y");
-
-        uint256[2] memory g2x;
-        g2x[0] = g2xArray[0];
-        g2x[1] = g2xArray[1];
-
-        uint256[2] memory g2y;
-        g2y[0] = g2yArray[0];
-        g2y[1] = g2yArray[1];
-
-        BN254.G1Point memory pubkeySignaturePoint = BN254.G1Point({
-            X: sx,
-            Y: sy
-        });
-        BN254.G1Point memory pubkeyG1 = BN254.G1Point({
-            X: g1x,
-            Y: g1y
-        });
-        BN254.G2Point memory pubkeyG2 = BN254.G2Point({
-            X: g2x,
-            Y: g2y
-        });
-        IBLSApkRegistry.PubkeyRegistrationParams memory pubkeyRegistrationParams = IBLSApkRegistry.PubkeyRegistrationParams({
-            pubkeyRegistrationSignature: pubkeySignaturePoint,
-            pubkeyG1: pubkeyG1,
-            pubkeyG2: pubkeyG2
-        });
-
-        return pubkeyRegistrationParams;
-
-    }
-
-
-    function upgradeAvsContracts() internal {
-        vm.startPrank(avsOperatorManager.owner());
-
-        // original version was deployed with an older version of UUPS upgradeable
-        // I can can use the new version after the first upgrade
-        //avsOperatorManager.upgradeToAndCall(address(new AvsOperatorManager()), "");
-
-        bytes4 selector = bytes4(keccak256(bytes("upgradeTo(address)")));
-        bytes memory data = abi.encodeWithSelector(selector, address(new AvsOperatorManager()));
-        (bool success, ) = address(avsOperatorManager).call(data);
-        require(success, "Call failed");
-
-        avsOperatorManager.upgradeEtherFiAvsOperator(address(new AvsOperator()));
-        vm.stopPrank();
-    }
-
-    // enum for fork options
-    uint8 HOLESKY_FORK = 1;
-    uint8 MAINNET_FORK = 2;
-
-    function initializeRealisticFork(uint8 forkEnum) public {
-
-        if (forkEnum == MAINNET_FORK) {
-            vm.selectFork(vm.createFork(vm.envString("MAINNET_RPC_URL")));
-            avsOperatorManager = AvsOperatorManager(0x2093Bbb221f1d8C7c932c32ee28Be6dEe4a37A6a);
-            operatorOneRunner = avsOperatorManager.avsNodeRunner(1);
-            operatorTwoRunner = avsOperatorManager.avsNodeRunner(2);
-        } else if (forkEnum == HOLESKY_FORK) {
-            vm.selectFork(vm.createFork(vm.envString("HOLESKY_RPC_URL")));
-            avsOperatorManager = AvsOperatorManager(0xDF9679E8BFce22AE503fD2726CB1218a18CD8Bf4);
-            operatorOneRunner = avsOperatorManager.avsNodeRunner(1);
-            operatorTwoRunner = avsOperatorManager.avsNodeRunner(2);
-        } else {
-            revert("Unimplemented fork");
+        // re-configure signer for testing
+        uint256 signerKey = 0x1234abcd;
+        {
+            address signer = vm.addr(signerKey);
+            vm.prank(admin);
+            avsOperatorManager.updateEcdsaSigner(operatorId, signer);
         }
 
+        // generate + sign the pubkey registration params with BLS key
+        IBLSApkRegistry.PubkeyRegistrationParams memory blsPubkeyRegistrationParams;
+        {
+            uint256 blsPrivKey = 0xaaaabbbb;
+
+            // generate the hash we need to sign with the BLS key
+            BN254.G1Point memory blsPubkeyRegistrationHash = eigendaRegistryCoordinator.pubkeyRegistrationMessageHash(operator);
+
+            // sign
+            blsPubkeyRegistrationParams = generateSignedPubkeyRegistrationParams(blsPubkeyRegistrationHash, blsPrivKey);
+        }
+
+        // generate + sign operator registration digest with signer ECDSA key
+        ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry;
+        {
+           address avsDirectory = address(0x135DDa560e946695d6f155dACaFC6f1F25C1F5AF);
+           address serviceManager = address(0x9FC952BdCbB7Daca7d420fA55b942405B073A89d);
+           signatureWithSaltAndExpiry = generateAvsRegistrationSignature(avsDirectory, operator, serviceManager, signerKey);
+        }
+
+        // register
+        {
+            bytes memory quorums = hex"01";
+            string memory socket = "https://test-socket";
+
+            vm.prank(operator);
+            eigendaRegistryCoordinator.registerOperator(quorums, socket, blsPubkeyRegistrationParams, signatureWithSaltAndExpiry);
+        }
+    }
+
+
+    function test_parseBlsKey() public view {
+        string memory jsonPath = "test/altlayer.bls-signature.json";
+
+        IBLSApkRegistry.PubkeyRegistrationParams memory pkeyParams = parseBlsKey(jsonPath);
+        assert(pkeyParams.pubkeyG1.X != 0);
     }
 
     function test_updateAllowedOperatorCalls() public {
@@ -267,8 +116,6 @@ contract EtherFiAvsOperatorsManagerTest is Test {
         address previousOperator = address(avsOperatorManager.avsOperators(1));
         address previousNodeRunner = AvsOperator(previousOperator).avsNodeRunner();
         address previousSigner = AvsOperator(previousOperator).ecdsaSigner();
-        console2.log(previousNodeRunner);
-        console2.log(previousSigner);
 
         upgradeAvsContracts();
         assertEq(previousNextAvsOperatorId, avsOperatorManager.nextAvsOperatorId());
@@ -281,16 +128,15 @@ contract EtherFiAvsOperatorsManagerTest is Test {
         assertEq(previousSigner, AvsOperator(updatedOperator).ecdsaSigner());
     }
 
+
+
     function test_registerWithAltLayer() public {
         initializeRealisticFork(MAINNET_FORK);
         upgradeAvsContracts();
 
         uint256 operatorId = 4;
 
-        address operatorAddress = address(avsOperatorManager.avsOperators(operatorId));
-
         address altLayerRegistryCoordinator = address(0x561be1AB42170a19f31645F774e6e3862B2139AA);
-        address brevisRegistryCoordinator = address(0x434621cfd8BcDbe8839a33c85aE2B2893a4d596C);
 
         IBLSApkRegistry.PubkeyRegistrationParams memory altLayerPubkeyParams = parseBlsKey("test/altlayer.bls-signature.json");
 
@@ -300,20 +146,6 @@ contract EtherFiAvsOperatorsManagerTest is Test {
             expiry: 1746078548
         });
 
-        /*
-            signature: 164fe4b0bc5cc8921c8a32aa6df6cc1195e3d81f082af80b2e1694e93a0544c33ecde76bacaab348fff6c19f17518bd632e97981e284a2b148dfa4af7779edea1b
-            hash: a4d42b015321e1902884ddb1382cef346c3da8769e752d6ce55861467867196d
-            salt: 17a6c7a46ee1b29463ffd3bfcd816e890126ad925c1451df51744e91d539d296
-            Expiry: 1746078548
-        */
-        //IBLSApkRegistry.PubkeyRegistrationParams
-
-
-        BN254.G1Point memory h1 = IRegistryCoordinator(altLayerRegistryCoordinator).pubkeyRegistrationMessageHash(operatorAddress);
-       // BN254.G1Point memory h2 = IRegistryCoordinator(brevisRegistryCoordinator).pubkeyRegistrationMessageHash(operatorAddress);
-        //console2.log("alt", h1.X, h1.Y);
-       // console2.log("bre", h2.X, h2.Y);
-        //return;
 
         bytes memory quorums = hex"00";
         string memory socket = "no need";
@@ -331,9 +163,11 @@ contract EtherFiAvsOperatorsManagerTest is Test {
 
     }
 
+
     function test_forwardOperatorCall() public {
         initializeRealisticFork(MAINNET_FORK);
         upgradeAvsContracts();
+
 
         address brevisRegistryCoordinator = address(0x434621cfd8BcDbe8839a33c85aE2B2893a4d596C);
         bytes memory quorums = hex"01";
