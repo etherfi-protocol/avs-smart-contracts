@@ -72,7 +72,6 @@ contract AvsOperatorManager is
     //-------------------------------------  ROLES  ---------------------------------------
     //--------------------------------------------------------------------------------------
 
-    bytes32 constant public ECDSA_SIGNER_ROLE = keccak256("AOM_ECDSA_SIGNER_ROLE");
     bytes32 constant public AVS_OPERATOR_ADMIN_ROLE = keccak256("AOM_AVS_OPERATOR_ADMIN_ROLE");
 
     //--------------------------------------------------------------------------------------
