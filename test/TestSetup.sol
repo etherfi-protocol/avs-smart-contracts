@@ -6,6 +6,7 @@ import "forge-std/Test.sol";
 
 import "../src/AvsOperator.sol";
 import "../src/AvsOperatorManager.sol";
+import "../test/mocks/RoleRegistryMock.sol";
 
 contract TestSetup is Test {
 
@@ -15,6 +16,8 @@ contract TestSetup is Test {
     address operatorOneRunner;
     address operatorTwoRunner;
 
+    RoleRegistryMock roleRegistry;
+
     IBLSApkRegistry.PubkeyRegistrationParams samplePubkeyRegistrationParams;
     ISignatureUtils.SignatureWithSaltAndExpiry sampleRegistrationSignature;
 
@@ -22,16 +25,21 @@ contract TestSetup is Test {
         admin = vm.addr(0x9876543210);
         vm.startPrank(admin);
 
+        roleRegistry = new RoleRegistryMock();
+
         // deploy manager
-        AvsOperatorManager avsOperatorManagerImpl = new AvsOperatorManager();
-        ERC1967Proxy avvsOperatorManagerProxy = new ERC1967Proxy(address(avsOperatorManagerImpl), "");
-        avsOperatorManager = AvsOperatorManager(address(avvsOperatorManagerProxy));
+        AvsOperatorManager avsOperatorManagerImpl = new AvsOperatorManager(address(roleRegistry));
+        ERC1967Proxy avsOperatorManagerProxy = new ERC1967Proxy(address(avsOperatorManagerImpl), "");
+        avsOperatorManager = AvsOperatorManager(address(avsOperatorManagerProxy));
 
         // initialize manager
-        AvsOperator avsOperatorImpl = new AvsOperator();
+        AvsOperator avsOperatorImpl = new AvsOperator(address(avsOperatorManager), address(roleRegistry));
         address delegationManager = address(0x1234); // TODO
         address avsDirectory = address(0x1235); // TODO
         avsOperatorManager.initialize(delegationManager, avsDirectory, address(avsOperatorImpl));
+
+        // setup default permissions
+        roleRegistry.grantRole(avsOperatorManager.AVS_OPERATOR_ADMIN_ROLE(), admin);
 
         // deploy a couple operators
         avsOperatorManager.instantiateEtherFiAvsOperator(2);
@@ -93,18 +101,23 @@ contract TestSetup is Test {
     function upgradeAvsContracts() internal {
         vm.startPrank(avsOperatorManager.owner());
 
+        // current mainnet deploy was created before roleRegistry
+        // TODO: We should delete this after upgrade and point at the existing version
+        roleRegistry = new RoleRegistryMock();
+
         // original version was deployed with an older version of UUPS upgradeable
         // I can can use the new version after the first upgrade
         //avsOperatorManager.upgradeToAndCall(address(new AvsOperatorManager()), "");
-
         bytes4 selector = bytes4(keccak256(bytes("upgradeTo(address)")));
-        bytes memory data = abi.encodeWithSelector(selector, address(new AvsOperatorManager()));
+        bytes memory data = abi.encodeWithSelector(selector, address(new AvsOperatorManager(address(roleRegistry))));
         (bool success, ) = address(avsOperatorManager).call(data);
         require(success, "Call failed");
 
-        avsOperatorManager.upgradeEtherFiAvsOperator(address(new AvsOperator()));
+        avsOperatorManager.upgradeEtherFiAvsOperator(address(new AvsOperator(address(avsOperatorManager), address(roleRegistry))));
 
-        avsOperatorManager.updateAdmin(admin, true);
+        // setup default permissions
+        roleRegistry.grantRole(avsOperatorManager.AVS_OPERATOR_ADMIN_ROLE(), admin);
+        roleRegistry.grantRole(avsOperatorManager.AVS_OPERATOR_ADMIN_ROLE(), avsOperatorManager.owner());
 
         vm.stopPrank();
     }
