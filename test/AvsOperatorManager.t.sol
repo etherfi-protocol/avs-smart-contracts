@@ -11,7 +11,6 @@ import "../src/eigenlayer-libraries/BeaconChainProofs.sol";
 import "../src/eigenlayer-interfaces/IBLSApkRegistry.sol";
 import "../src/eigenlayer-libraries/BN254.sol";
 import "../src/eigenlayer-interfaces/IEigenPod.sol";
-import "../src/eigenlayer-interfaces/IMachServiceManager.sol";
 
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
