@@ -4,6 +4,10 @@ pragma solidity ^0.8.24;
 import "../test/TestSetup.sol";
 import "../test/BlsTestHelpers.t.sol";
 
+interface IAutomataServiceManagerWhitelist {
+    function whitelistOperator(address operator) external;
+}
+
 contract AutomataTest is TestSetup, BlsTestHelper {
 
     function test_registerAutomata() public {
@@ -13,6 +17,11 @@ contract AutomataTest is TestSetup, BlsTestHelper {
         IRegistryCoordinator automataRegistryCoordinator = IRegistryCoordinator(address(0x414696E4F7f06273973E89bfD3499e8666D63Bd4));
         uint256 operatorId = 1;
         address operator = address(avsOperatorManager.avsOperators(operatorId));
+
+        // whitelist operator on Automata service manager
+        IAutomataServiceManagerWhitelist serviceManagerWhitelist = IAutomataServiceManagerWhitelist(address(0xE5445838C475A2980e6a88054ff1514230b83aEb));
+        vm.prank(0x0f5661B579fD19C9Bd14940555FeD67aff3FCe41);
+        serviceManagerWhitelist.whitelistOperator(operator);
 
         // re-configure signer for testing
         uint256 signerKey = 0x1234abcd;
@@ -45,7 +54,7 @@ contract AutomataTest is TestSetup, BlsTestHelper {
         // register
         {
             bytes memory quorums = hex"00";
-            string memory socket = "";
+            string memory socket = "https://test-socket";
 
             vm.prank(operator);
             automataRegistryCoordinator.registerOperator(quorums, socket, blsPubkeyRegistrationParams, signatureWithSaltAndExpiry);
