@@ -10,13 +10,13 @@ import "./eigenlayer-interfaces/IRegistryCoordinator.sol";
 import "./eigenlayer-interfaces/ISignatureUtils.sol";
 import "./eigenlayer-interfaces/IBLSApkRegistry.sol";
 import  "./eigenlayer-interfaces/IDelegationManager.sol";
-
+import "./IRoleRegistry.sol";
 
 
 contract AvsOperator is IERC1271, IBeacon {
 
-    address public avsOperatorsManager;
-    address public ecdsaSigner;   // ECDSA signer that ether.fi owns
+    address public DEPRECATED_avsOperatorsManager;
+    address public DEPRECATED_ecdsaSigner;   // ECDSA signer that ether.fi owns
     address public avsNodeRunner; // Staking Company such as DSRV, Pier Two, Nethermind, ...
 
     // DEPRECATED
@@ -27,16 +27,24 @@ contract AvsOperator is IERC1271, IBeacon {
         IBLSApkRegistry.PubkeyRegistrationParams params;
         bool isRegistered;
     }
-    mapping(address => AvsInfo) public avsInfos;
+    mapping(address => AvsInfo) public DEPRECATED_avsInfos;
 
+    address public immutable avsOperatorManager;
+    IRoleRegistry public immutable roleRegistry;
+
+    //--------------------------------------------------------------------------------------
+    //-------------------------------------  ROLES  ---------------------------------------
+    //--------------------------------------------------------------------------------------
+
+    bytes32 constant public ECDSA_SIGNER_ROLE = keccak256("AVS_OPERATOR_ECDSA_SIGNER_ROLE");
 
     //--------------------------------------------------------------------------------------
     //----------------------------------  Admin  -------------------------------------------
     //--------------------------------------------------------------------------------------
 
-    function initialize(address _avsOperatorsManager) external {
-        require(avsOperatorsManager == address(0), "ALREADY_INITIALIZED");
-        avsOperatorsManager = _avsOperatorsManager;
+    constructor(address _avsOperatorManager, address _roleRegistry) {
+        avsOperatorManager = _avsOperatorManager;
+        roleRegistry = IRoleRegistry(_roleRegistry);
     }
 
     /// @dev implementation address for beacon proxy.
@@ -82,15 +90,6 @@ contract AvsOperator is IERC1271, IBeacon {
         avsNodeRunner = _avsNodeRunner;
     }
 
-    function updateEcdsaSigner(address _ecdsaSigner) external managerOnly {
-        ecdsaSigner = _ecdsaSigner;
-    }
-
-    // DEPRECATED
-    function getAvsInfo(address _avsRegistryCoordinator) external view returns (AvsInfo memory) {
-        return avsInfos[_avsRegistryCoordinator];
-    }
-
     //--------------------------------------------------------------------------------------
     //---------------------------------  Signatures-  --------------------------------------
     //--------------------------------------------------------------------------------------
@@ -102,7 +101,7 @@ contract AvsOperator is IERC1271, IBeacon {
     */
     function isValidSignature(bytes32 _digestHash, bytes memory _signature) public view override returns (bytes4 magicValue) {
         (address recovered, ) = ECDSA.tryRecover(_digestHash, _signature);
-        return recovered == ecdsaSigner ? this.isValidSignature.selector : bytes4(0xffffffff);
+        return roleRegistry.hasRole(ECDSA_SIGNER_ROLE, recovered) ? this.isValidSignature.selector : bytes4(0xffffffff);
     }
 
 
@@ -139,7 +138,7 @@ contract AvsOperator is IERC1271, IBeacon {
     //--------------------------------------------------------------------------------------
 
     modifier managerOnly() {
-        require(msg.sender == avsOperatorsManager, "NOT_MANAGER");
+        require(msg.sender == avsOperatorManager, "NOT_MANAGER");
         _;
     }
 }

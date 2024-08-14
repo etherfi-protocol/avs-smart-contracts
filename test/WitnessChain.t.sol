@@ -6,8 +6,8 @@ import "../test/AvsOperatorManager.t.sol";
 import "forge-std/console2.sol";
 
 interface IWitnessOperatorRegistry {
-    function calculateWatchtowerRegistrationMessageHash(address operator, uint256 expiry) external returns (bytes32);
-    function registerWatchtowerAsOperator (address watchtower, uint256 expiry, bytes memory signedMessage) external;
+    function calculateWatchtowerRegistrationMessageHash(address operator, bytes32 salt, uint256 expiry) external returns (bytes32);
+    function registerWatchtowerAsOperator (address watchtower, bytes32 salt, uint256 expiry, bytes memory signedMessage) external;
     function addToOperatorWhitelist (address[] memory operatorsList) external;
     function owner() external returns (address);
 }
@@ -24,6 +24,7 @@ contract WitnessChainTest is TestSetup {
 
     function test_registerWithWitnessChain() public {
         initializeRealisticFork(MAINNET_FORK); upgradeAvsContracts();
+        upgradeAvsContracts();
 
         // pick an arbitrary operator not currently registered
         uint256 operatorId = 2;
@@ -33,8 +34,7 @@ contract WitnessChainTest is TestSetup {
         uint256 signerKey = 0x1234abcd;
         {
             address signer = vm.addr(signerKey);
-            vm.prank(admin);
-            avsOperatorManager.updateEcdsaSigner(operatorId, signer);
+            roleRegistry.grantRole(AvsOperator(operator).ECDSA_SIGNER_ROLE(), signer);
         }
 
         // Register operator with witness chain
@@ -70,7 +70,8 @@ contract WitnessChainTest is TestSetup {
         {
             // 1. compute watchtower registration digest
             uint256 expiry = block.timestamp + 10000;
-            bytes32 watchtowerRegistrationDigest = operatorRegistry.calculateWatchtowerRegistrationMessageHash(address(operator), expiry);
+            bytes32 salt = bytes32(0x123456789abcdef0000000000000000000000000000000000000000000000000);
+            bytes32 watchtowerRegistrationDigest = operatorRegistry.calculateWatchtowerRegistrationMessageHash(address(operator), salt, expiry);
 
             // 2. sign digest with watchtower key
             uint256 watchtowerPrivateKey = 0xfedc3210;
@@ -81,12 +82,12 @@ contract WitnessChainTest is TestSetup {
 
             // 3. register watchtower
             vm.prank(address(operator));
-            operatorRegistry.registerWatchtowerAsOperator(watchtowerAddress, expiry, signature);
+            operatorRegistry.registerWatchtowerAsOperator(watchtowerAddress, salt, expiry, signature);
 
             // ensure we are now registered by checking that we can't register again
             vm.expectRevert("WitnessHub: Watchtower address already registered");
             vm.prank(address(operator));
-            operatorRegistry.registerWatchtowerAsOperator(watchtowerAddress, expiry, signature);
+            operatorRegistry.registerWatchtowerAsOperator(watchtowerAddress, salt, expiry, signature);
         }
     }
 

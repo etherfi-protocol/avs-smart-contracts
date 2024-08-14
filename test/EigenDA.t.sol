@@ -18,8 +18,7 @@ contract EigenDATest is TestSetup, BlsTestHelper {
         uint256 signerKey = 0x1234abcd;
         {
             address signer = vm.addr(signerKey);
-            vm.prank(admin);
-            avsOperatorManager.updateEcdsaSigner(operatorId, signer);
+            roleRegistry.grantRole(AvsOperator(operator).ECDSA_SIGNER_ROLE(), signer);
         }
 
         // generate + sign the pubkey registration params with BLS key

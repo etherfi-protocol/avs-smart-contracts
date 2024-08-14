@@ -9,6 +9,7 @@ import "@openzeppelin-upgradeable/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 
 import "./AvsOperator.sol";
+import "./IRoleRegistry.sol";
 
 import "./eigenlayer-interfaces/IAVSDirectory.sol";
 import "./eigenlayer-interfaces/IServiceManager.sol";
@@ -26,8 +27,8 @@ contract AvsOperatorManager is
 
     IDelegationManager public delegationManager;
 
-    mapping(address => bool) public admins;
-    mapping(address => bool) public pausers;
+    mapping(address => bool) public DEPRECATED_admins;
+    mapping(address => bool) public DEPRECATED_pausers;
 
     IAVSDirectory public avsDirectory;
 
@@ -35,18 +36,19 @@ contract AvsOperatorManager is
     // allowed calls that AvsRunner can trigger from operator contract
     mapping(uint256 => mapping(address => mapping(bytes4 => bool))) public allowedOperatorCalls;
 
+    IRoleRegistry public immutable roleRegistry;
+
     event ForwardedOperatorCall(uint256 indexed id, address indexed target, bytes4 indexed selector, bytes data, address sender);
     event CreatedEtherFiAvsOperator(uint256 indexed id, address etherFiAvsOperator);
     event RegisteredAsOperator(uint256 indexed id, IDelegationManager.OperatorDetails detail);
     event ModifiedOperatorDetails(uint256 indexed id, IDelegationManager.OperatorDetails newOperatorDetails);
     event UpdatedOperatorMetadataURI(uint256 indexed id, string metadataURI);
     event UpdatedAvsNodeRunner(uint256 indexed id, address avsNodeRunner);
-    event UpdatedEcdsaSigner(uint256 indexed id, address ecdsaSigner);
     event AllowedOperatorCallsUpdated(uint256 indexed id, address indexed target, bytes4 indexed selector, bool allowed);
-    event AdminUpdated(address indexed admin, bool isAdmin);
 
      /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
+    constructor(address _roleRegistry) {
+        roleRegistry = IRoleRegistry(_roleRegistry);
         _disableInitializers();
     }
 
@@ -66,7 +68,11 @@ contract AvsOperatorManager is
         avsDirectory = IAVSDirectory(_avsDirectory);
     }
 
+    //--------------------------------------------------------------------------------------
+    //-------------------------------------  ROLES  ---------------------------------------
+    //--------------------------------------------------------------------------------------
 
+    bytes32 constant public AVS_OPERATOR_ADMIN_ROLE = keccak256("AOM_AVS_OPERATOR_ADMIN_ROLE");
 
     //--------------------------------------------------------------------------------------
     //---------------------------------  Eigenlayer Core  ----------------------------------
@@ -95,15 +101,16 @@ contract AvsOperatorManager is
     //--------------------------------------------------------------------------------------
 
     error InvalidOperatorCall();
+    error InvalidCaller();
 
     // Forward an arbitrary call to be run by the operator conract.
     // That operator must be approved for the specific method and target
-    function forwardOperatorCall(uint256 _id, address _target, bytes4 _selector, bytes calldata _args) external onlyOperator(_id) {
+    function forwardOperatorCall(uint256 _id, address _target, bytes4 _selector, bytes calldata _args) external {
         _forwardOperatorCall(_id, _target, _selector, _args);
     }
 
     // alternative version where you just pass raw input. Not sure which will end up being more convenient
-    function forwardOperatorCall(uint256 _id, address _target, bytes calldata _input) external onlyOperator(_id) {
+    function forwardOperatorCall(uint256 _id, address _target, bytes calldata _input) external {
 
         if (_input.length < 4) revert InvalidOperatorCall();
 
@@ -114,6 +121,7 @@ contract AvsOperatorManager is
     }
 
     function _forwardOperatorCall(uint256 _id, address _target, bytes4 _selector, bytes calldata _args) private {
+        if (!canForwardCall(_id)) revert InvalidCaller();
         if (!isValidOperatorCall(_id, _target, _selector, _args)) revert InvalidOperatorCall();
 
         avsOperators[_id].forwardCall(_target, abi.encodePacked(_selector, _args));
@@ -148,19 +156,9 @@ contract AvsOperatorManager is
         emit AllowedOperatorCallsUpdated(_operatorId, _target, _selector, _allowed);
     }
 
-    function updateAdmin(address _address, bool _isAdmin) external onlyOwner {
-        admins[_address] = _isAdmin;
-        emit AdminUpdated(_address, _isAdmin);
-    }
-
     function updateAvsNodeRunner(uint256 _id, address _avsNodeRunner) external onlyAdmin {
         avsOperators[_id].updateAvsNodeRunner(_avsNodeRunner);
         emit UpdatedAvsNodeRunner(_id, _avsNodeRunner);
-    }
-
-    function updateEcdsaSigner(uint256 _id, address _ecdsaSigner) external onlyAdmin {
-        avsOperators[_id].updateEcdsaSigner(_ecdsaSigner);
-        emit UpdatedEcdsaSigner(_id, _ecdsaSigner);
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
@@ -182,7 +180,6 @@ contract AvsOperatorManager is
 
         BeaconProxy proxy = new BeaconProxy(address(upgradableBeacon), "");
         avsOperators[_id] = AvsOperator(address(proxy));
-        avsOperators[_id].initialize(address(this));
 
         emit CreatedEtherFiAvsOperator(_id, address(avsOperators[_id]));
 
@@ -203,19 +200,14 @@ contract AvsOperatorManager is
         return avsOperators[_id].avsNodeRunner();
     }
 
-    function ecdsaSigner(uint256 _id) external view returns (address) {
-        return avsOperators[_id].ecdsaSigner();
-    }
-
     function operatorDetails(uint256 _id) external view returns (IDelegationManager.OperatorDetails memory) {
         return delegationManager.operatorDetails(address(avsOperators[_id]));
     }
 
-    // DEPRECATED
-    function getAvsInfo(uint256 _id, address _avsRegistryCoordinator) external view returns (AvsOperator.AvsInfo memory) {
-         return avsOperators[_id].getAvsInfo(_avsRegistryCoordinator);
+    function canForwardCall(uint256 _id) public view returns (bool) {
+        // only can forward call to operator contract if an admin, or the registered node runner
+        return (msg.sender == avsOperators[_id].avsNodeRunner() || roleRegistry.hasRole(AVS_OPERATOR_ADMIN_ROLE, msg.sender));
     }
-
 
     /**
      * @notice Calculates the digest hash to be signed by an operator to register with an AVS
@@ -233,22 +225,11 @@ contract AvsOperatorManager is
     //------------------------------------  Modifiers  -------------------------------------
     //--------------------------------------------------------------------------------------
 
-    function _onlyAdmin() internal view {
-        require(admins[msg.sender] || msg.sender == owner(), "INCORRECT_CALLER");
-    }
-
-    function _onlyOperator(uint256 _id) internal view {
-        require(msg.sender == avsOperators[_id].avsNodeRunner() || admins[msg.sender] || msg.sender == owner(), "INCORRECT_CALLER");
-    }
 
     modifier onlyAdmin() {
-        _onlyAdmin();
+        if (!roleRegistry.hasRole(AVS_OPERATOR_ADMIN_ROLE, msg.sender)) revert InvalidCaller();
         _;
     }
 
-    modifier onlyOperator(uint256 _id) {
-        _onlyOperator(_id);
-        _;
-    }
 
 }
