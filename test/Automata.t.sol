@@ -44,7 +44,7 @@ contract AutomataTest is TestSetup, BlsTestHelper {
 
         // register
         {
-            bytes memory quorums = hex"01";
+            bytes memory quorums = hex"00";
             string memory socket = "";
 
             vm.prank(operator);
