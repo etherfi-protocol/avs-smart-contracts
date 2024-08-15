@@ -56,8 +56,11 @@ contract HyperlaneTest is TestSetup {
                 expiry: expiry
             });
 
+            // node operator provides a separate ecdsa key for signing avs messages
+            address avsSigner = vm.addr(0x1234abfe);
+
             vm.prank(address(operator));
-            stakeRegistry.registerOperatorWithSignature(signatureWithSaltAndExpiry, address(operator));
+            stakeRegistry.registerOperatorWithSignature(signatureWithSaltAndExpiry, avsSigner);
         }
 
     }
