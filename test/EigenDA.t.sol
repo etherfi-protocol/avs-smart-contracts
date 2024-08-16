@@ -2,9 +2,9 @@
 pragma solidity ^0.8.24;
 
 import "../test/TestSetup.sol";
-import "../test/BlsTestHelpers.t.sol";
+import "../test/CryptoTestHelpers.t.sol";
 
-contract EigenDATest is TestSetup, BlsTestHelper {
+contract EigenDATest is TestSetup, CryptoTestHelper {
 
     function test_registerEigenDA() public {
         initializeRealisticFork(MAINNET_FORK);

@@ -8,7 +8,7 @@ import "../src/eigenlayer-interfaces/IBLSApkRegistry.sol";
 import "../src/eigenlayer-interfaces/ISignatureUtils.sol";
 import "../src/eigenlayer-interfaces/IAVSDirectory.sol";
 
-contract BlsTestHelper is Test {
+contract CryptoTestHelper is Test {
     using Strings for uint256;
     using BN254 for BN254.G1Point;
 
@@ -17,7 +17,7 @@ contract BlsTestHelper is Test {
         string[] memory inputs = new string[](5);
         inputs[0] = "go";
         inputs[1] = "run";
-        inputs[2] = "test/ffi/go/g2mul.go";
+        inputs[2] = "test/ffi/go/cryptoHelpers.go";
         inputs[3] = x.toString(); 
 
         inputs[4] = "1";
@@ -43,7 +43,7 @@ contract BlsTestHelper is Test {
 
         IBLSApkRegistry.PubkeyRegistrationParams memory params;
         params.pubkeyG1 = BN254.generatorG1().scalar_mul(privKey);
-        params.pubkeyG2 = BlsTestHelper.mul(privKey);
+        params.pubkeyG2 = CryptoTestHelper.mul(privKey);
         params.pubkeyRegistrationSignature = signBLSHash(registrationHash, privKey);
 
         return params;
@@ -127,5 +127,8 @@ contract BlsTestHelper is Test {
         return pubkeyRegistrationParams;
 
     }
+
+    // This function utilizes the FFI to compute the public key of the provided private ECDSA key
+    
 
 }
