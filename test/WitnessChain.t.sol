@@ -23,7 +23,8 @@ contract WitnessChainTest is TestSetup {
     IWitnessOperatorRegistry operatorRegistry = IWitnessOperatorRegistry(address(0xEf1a89841fd189ba28e780A977ca70eb1A5e985D));
 
     function test_registerWithWitnessChain() public {
-        initializeRealisticFork(MAINNET_FORK); upgradeAvsContracts();
+        initializeRealisticFork(MAINNET_FORK);
+        upgradeAvsContracts();
 
         // pick an arbitrary operator not currently registered
         uint256 operatorId = 2;
