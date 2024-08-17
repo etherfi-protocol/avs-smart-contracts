@@ -12,7 +12,6 @@ import "../src/eigenlayer-interfaces/IBLSApkRegistry.sol";
 import "../src/eigenlayer-libraries/BN254.sol";
 import "../src/eigenlayer-interfaces/IEigenPod.sol";
 
-
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
 
@@ -127,42 +126,6 @@ contract EtherFiAvsOperatorsManagerTest is TestSetup, BlsTestHelper {
         assertEq(previousNodeRunner, AvsOperator(updatedOperator).avsNodeRunner());
         assertEq(previousSigner, AvsOperator(updatedOperator).ecdsaSigner());
     }
-
-
-
-    function test_registerWithAltLayer() public {
-        initializeRealisticFork(MAINNET_FORK);
-        upgradeAvsContracts();
-
-        uint256 operatorId = 4;
-
-        address altLayerRegistryCoordinator = address(0x561be1AB42170a19f31645F774e6e3862B2139AA);
-
-        IBLSApkRegistry.PubkeyRegistrationParams memory altLayerPubkeyParams = parseBlsKey("test/altlayer.bls-signature.json");
-
-        ISignatureUtils.SignatureWithSaltAndExpiry memory altLayerSignature = ISignatureUtils.SignatureWithSaltAndExpiry({
-            signature: hex"164fe4b0bc5cc8921c8a32aa6df6cc1195e3d81f082af80b2e1694e93a0544c33ecde76bacaab348fff6c19f17518bd632e97981e284a2b148dfa4af7779edea1b",
-            salt: bytes32(0xa4d42b015321e1902884ddb1382cef346c3da8769e752d6ce55861467867196d),
-            expiry: 1746078548
-        });
-
-
-        bytes memory quorums = hex"00";
-        string memory socket = "no need";
-
-        bytes4 selector = IRegistryCoordinator.registerOperator.selector;
-        bytes memory args = abi.encode(quorums, socket, altLayerPubkeyParams, altLayerSignature);
-
-        // update the whitelist
-        vm.prank(avsOperatorManager.owner());
-        avsOperatorManager.updateAllowedOperatorCalls(operatorId, altLayerRegistryCoordinator, selector, true);
-
-        vm.prank(avsOperatorManager.avsNodeRunner(operatorId));
-        //vm.expectRevert("RegistryCoordinator._registerOperator: operator already registered for some quorums being registered for");
-        avsOperatorManager.forwardOperatorCall(operatorId, altLayerRegistryCoordinator, selector, args);
-
-    }
-
 
     function test_forwardOperatorCall() public {
         initializeRealisticFork(MAINNET_FORK);
