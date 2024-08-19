@@ -2,16 +2,72 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"math/big"
 	"os"
 	"strings"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 func main() {
+
+	// switch for selecting helper function to call
+	switch os.Args[1] {
+	case "computeG2Point":
+		computeG2Point()
+	case "getECDSAPubKey":
+		getECDSAPubKey()
+	}
+
+}
+
+// gets the ECDSA public key from the private key
+func getECDSAPubKey() {
+	// int string
+	arg1 := os.Args[2]
+
+	// Convert input integer string to *big.Int
+	privInt, success := new(big.Int).SetString(arg1, 10)
+	if !success {
+		log.Fatalf("Failed to parse integer string: %s", arg1)
+	}
+
+	// Convert to 32-byte slice for `ToECDSA` input
+	privBytes := privInt.Bytes()
+	if len(privBytes) < 32 {
+		// Pad the byte slice with leading zeros if necessary
+		paddedBytes := make([]byte, 32)
+		copy(paddedBytes[32-len(privBytes):], privBytes)
+		privBytes = paddedBytes
+	} else if len(privBytes) > 32 {
+		log.Fatalf("Integer is too large. It must be exactly 256 bits.")
+	}
+
+	privateKey, err := crypto.ToECDSA(privBytes)
+	if err != nil {
+		log.Fatalf("Failed to create ECDSA private key: %v", err)
+	}
+
+	// Get X and Y coordinates
+	x, y := privateKey.PublicKey.X, privateKey.PublicKey.Y
+	// Convert X and Y to 32-byte big-endian format
+	xBytes := x.Bytes()
+	yBytes := y.Bytes()
+
+	switch os.Args[3] {
+	case "X":
+		fmt.Printf("%x\n", xBytes)
+	case "Y":
+		fmt.Printf("%x\n", yBytes)
+	}
+}
+
+// computes the requested g2 point
+func computeG2Point() {
 	//parse args
-	arg1 := os.Args[1]
+	arg1 := os.Args[2]
 	n := new(big.Int)
 	n, _ = n.SetString(arg1, 10)
 
@@ -40,7 +96,7 @@ func main() {
 	pyssInt, _ = pyssInt.SetString(pyss[0], 10)
 
 	//switch to print coord requested
-	switch os.Args[2] {
+	switch os.Args[3] {
 	case "1":
 		fmt.Printf("0x%064X", pxsInt)
 	case "2":
@@ -50,7 +106,6 @@ func main() {
 	case "4":
 		fmt.Printf("0x%064X", pyssInt)
 	}
-
 }
 
 func GetG2Generator() *bn254.G2Affine {

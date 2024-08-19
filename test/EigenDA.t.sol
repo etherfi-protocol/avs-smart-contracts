@@ -9,7 +9,6 @@ contract EigenDATest is TestSetup, CryptoTestHelper {
     function test_registerEigenDA() public {
         initializeRealisticFork(MAINNET_FORK);
         upgradeAvsContracts();
-
         IRegistryCoordinator eigendaRegistryCoordinator = IRegistryCoordinator(address(0x0BAAc79acD45A023E19345c352d8a7a83C4e5656));
         uint256 operatorId = 1;
         address operator = address(avsOperatorManager.avsOperators(operatorId));
