@@ -2,10 +2,10 @@
 pragma solidity ^0.8.24;
 
 import "../test/TestSetup.sol";
-import "../test/BlsTestHelpers.t.sol";
+import "../test/CryptoTestHelpers.t.sol";
 import "../src/eigenlayer-interfaces/IMachServiceManager.sol";
 
-contract AltLayerTest is TestSetup, BlsTestHelper {
+contract AltLayerTest is TestSetup, CryptoTestHelper {
 
     function test_registeraltlayer() public {
         initializeRealisticFork(MAINNET_FORK);
