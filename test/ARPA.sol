@@ -40,7 +40,7 @@ contract ARPATest is TestSetup, CryptoTestHelper {
         // register
         {
             // uncompressed BLS public key on bn254 curve
-            // Generated when the operator begins to run the ARPA node
+            // generated when the operator begins to run the ARPA node
             bytes memory dkgPublicKey =
             hex"047b565c2e1724fda37d648746d778618f995f6635bb38a71be2f60c09ffbea011a8fe485a7a3a41c7eab1004bb1b5f90b49210173c24cb90dfe99f6c92970660b80428a38cff7734a4c853bd87b55dc2b3f850081323658326fd8468660aa170c74ee6c4fb599c426e4041fb7795164ea0dd1ac362437d3c82647705a5d13a1";
 
