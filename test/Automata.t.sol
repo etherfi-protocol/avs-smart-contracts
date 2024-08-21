@@ -2,13 +2,13 @@
 pragma solidity ^0.8.24;
 
 import "../test/TestSetup.sol";
-import "../test/BlsTestHelpers.t.sol";
+import "../test/CryptoTestHelpers.t.sol";
 
 interface IAutomataServiceManagerWhitelist {
     function whitelistOperator(address operator) external;
 }
 
-contract AutomataTest is TestSetup, BlsTestHelper {
+contract AutomataTest is TestSetup, CryptoTestHelper {
 
     function test_registerAutomata() public {
         initializeRealisticFork(MAINNET_FORK);

@@ -2,37 +2,40 @@
 pragma solidity ^0.8.24;
 
 import "forge-std/Test.sol";
+import "forge-std/console.sol";
 import "openzeppelin-contracts/contracts/utils/Strings.sol";
 import "../src/eigenlayer-libraries/BN254.sol";
 import "../src/eigenlayer-interfaces/IBLSApkRegistry.sol";
 import "../src/eigenlayer-interfaces/ISignatureUtils.sol";
 import "../src/eigenlayer-interfaces/IAVSDirectory.sol";
 
-contract BlsTestHelper is Test {
+contract CryptoTestHelper is Test {
     using Strings for uint256;
     using BN254 for BN254.G1Point;
 
     // This function utilizes the FFI to compute the G2 point of the provided private bls key.
     function mul(uint256 x) public returns (BN254.G2Point memory g2Point) {
-        string[] memory inputs = new string[](5);
+        string[] memory inputs = new string[](6);
         inputs[0] = "go";
         inputs[1] = "run";
-        inputs[2] = "test/ffi/go/g2mul.go";
-        inputs[3] = x.toString(); 
+        inputs[2] = "test/ffi/go/goCryptoHelpers.go";
+        inputs[3] = "computeG2Point";
+        
+        inputs[4] = x.toString(); 
 
-        inputs[4] = "1";
+        inputs[5] = "1";
         bytes memory res = vm.ffi(inputs);
         g2Point.X[1] = abi.decode(res, (uint256));
 
-        inputs[4] = "2";
+        inputs[5] = "2";
         res = vm.ffi(inputs);
         g2Point.X[0] = abi.decode(res, (uint256));
 
-        inputs[4] = "3";
+        inputs[5] = "3";
         res = vm.ffi(inputs);
         g2Point.Y[1] = abi.decode(res, (uint256));
 
-        inputs[4] = "4";
+        inputs[5] = "4";
         res = vm.ffi(inputs);
         g2Point.Y[0] = abi.decode(res, (uint256));
     }
@@ -43,7 +46,7 @@ contract BlsTestHelper is Test {
 
         IBLSApkRegistry.PubkeyRegistrationParams memory params;
         params.pubkeyG1 = BN254.generatorG1().scalar_mul(privKey);
-        params.pubkeyG2 = BlsTestHelper.mul(privKey);
+        params.pubkeyG2 = CryptoTestHelper.mul(privKey);
         params.pubkeyRegistrationSignature = signBLSHash(registrationHash, privKey);
 
         return params;
@@ -126,6 +129,33 @@ contract BlsTestHelper is Test {
 
         return pubkeyRegistrationParams;
 
+    }
+
+    struct ECSDAPubKey {
+        bytes32 X;
+        bytes32 Y;
+    }
+
+    // These functions utilizes FFI to get pubkey of the provided private ECDSA key
+    function getECSDAPubKey(uint256 privateKey) public returns (ECSDAPubKey memory) {
+        string[] memory inputs = new string[](6);
+        inputs[0] = "go";
+        inputs[1] = "run";
+        inputs[2] = "test/ffi/go/goCryptoHelpers.go";
+        inputs[3] = "getECDSAPubKey";
+        inputs[4] = privateKey.toString();
+
+        inputs[5] = "X";
+        bytes memory resX = vm.ffi(inputs);
+        inputs[5] = "Y";
+        bytes memory resY = vm.ffi(inputs);
+
+        ECSDAPubKey memory ecdsaPubKey = ECSDAPubKey({
+            X: bytes32(resX),
+            Y: bytes32(resY)
+        });
+
+        return ecdsaPubKey;
     }
 
 }

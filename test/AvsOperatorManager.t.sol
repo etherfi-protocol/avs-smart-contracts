@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import "../test/BlsTestHelpers.t.sol";
+import "../test/CryptoTestHelpers.t.sol";
 import "../test/TestSetup.sol";
 
 import "../src/AvsOperator.sol";
@@ -11,12 +11,13 @@ import "../src/eigenlayer-libraries/BeaconChainProofs.sol";
 import "../src/eigenlayer-interfaces/IBLSApkRegistry.sol";
 import "../src/eigenlayer-libraries/BN254.sol";
 import "../src/eigenlayer-interfaces/IEigenPod.sol";
+import "../src/eigenlayer-libraries/Secp2561.sol";
 
 import "forge-std/Test.sol";
 import "forge-std/console2.sol";
 
 
-contract EtherFiAvsOperatorsManagerTest is TestSetup, BlsTestHelper {
+contract EtherFiAvsOperatorsManagerTest is TestSetup, CryptoTestHelper {
 
     function test_registerEigenda() public {
         initializeRealisticFork(MAINNET_FORK);
@@ -64,12 +65,24 @@ contract EtherFiAvsOperatorsManagerTest is TestSetup, BlsTestHelper {
         }
     }
 
-
     function test_parseBlsKey() public view {
         string memory jsonPath = "test/altlayer.bls-signature.json";
 
         IBLSApkRegistry.PubkeyRegistrationParams memory pkeyParams = parseBlsKey(jsonPath);
         assert(pkeyParams.pubkeyG1.X != 0);
+    }
+
+    function test_getECSDAPubKey() public {
+        uint256 key = 0x1234abcd;
+        address keyAddress = vm.addr(key);
+
+        ECSDAPubKey memory pubKey = getECSDAPubKey(key);
+
+        bytes memory pubKeyBytes = abi.encodePacked(pubKey.X, pubKey.Y);
+
+        address pubKeyAddress = Secp256k1.pubkeyToAddress(pubKeyBytes);
+
+        assertEq(keyAddress, pubKeyAddress);
     }
 
     function test_updateAllowedOperatorCalls() public {
@@ -130,7 +143,6 @@ contract EtherFiAvsOperatorsManagerTest is TestSetup, BlsTestHelper {
     function test_forwardOperatorCall() public {
         initializeRealisticFork(MAINNET_FORK);
         upgradeAvsContracts();
-
 
         address brevisRegistryCoordinator = address(0x434621cfd8BcDbe8839a33c85aE2B2893a4d596C);
         bytes memory quorums = hex"01";

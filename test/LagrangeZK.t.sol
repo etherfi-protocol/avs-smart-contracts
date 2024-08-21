@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "../test/TestSetup.sol";
-import "../test/BlsTestHelpers.t.sol";
+import "../test/CryptoTestHelpers.t.sol";
 
 interface ILagrangeZkServiceManager {
     function registerOperatorToAVS(address operator, ISignatureUtils.SignatureWithSaltAndExpiry memory signature) external;
