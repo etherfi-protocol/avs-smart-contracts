@@ -17,7 +17,6 @@ interface ILagrangeZkStakeRegistry {
         function registerOperator(LagrangeZkPublicKey calldata publicKey, ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature) external;
         function addToWhitelist(address[] calldata addrs) external;
         function owner() external returns (address);
-
 }
 
 
