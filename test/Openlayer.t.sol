@@ -8,8 +8,9 @@ interface IOpenlayerRegistryCoordinator {
             bytes calldata quorumNumbers,
             string calldata socket,
             IBLSApkRegistry.PubkeyRegistrationParams calldata params,
-            ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature
-        ) external; 
+            ISignatureUtils.SignatureWithSaltAndExpiry memory operatorSignature,
+            address operatorSignatureAddress
+        ) external;
 
         function serviceManager() external returns (address);
         function pubkeyRegistrationMessageHash(address operator) external view returns (BN254.G1Point memory);
@@ -26,6 +27,7 @@ contract OpenlayerTest is TestSetup, CryptoTestHelper {
         upgradeAvsContracts();
 
         address serviceManager = registryCoordinator.serviceManager();
+        console2.log("serviceManager", serviceManager);
 
         // pick an arbitrary operator not currently registered
         uint256 operatorId = 2;
@@ -61,10 +63,11 @@ contract OpenlayerTest is TestSetup, CryptoTestHelper {
         // register
         {
             bytes memory quorums = hex"00";
-            string memory socket = "https://test-socket";
+            string memory socket = "Not Needed";
 
             vm.prank(address(operator));
-            registryCoordinator.registerOperator(quorums, socket, blsPubkeyRegistrationParams, signatureWithSaltAndExpiry);
+            // They add the address of the signer as an extra param here. No idea why because it can be recovered from the signature?
+            registryCoordinator.registerOperator(quorums, socket, blsPubkeyRegistrationParams, signatureWithSaltAndExpiry, address(operator));
         }
 
     }
