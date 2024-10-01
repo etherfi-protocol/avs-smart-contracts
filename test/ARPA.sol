@@ -34,9 +34,9 @@ contract ARPATest is TestSetup, CryptoTestHelper {
         // generate + sign operator registration digest with signer ECDSA key
         ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry;
         {
-           address avsDirectory = address(0x135DDa560e946695d6f155dACaFC6f1F25C1F5AF);
-           address serviceManager = address(0x1DE75EaAb2df55d467494A172652579E6FA4540E);
-           signatureWithSaltAndExpiry = generateAvsRegistrationSignature(avsDirectory, operator, serviceManager, signerKey);
+            address avsDirectory = address(0x135DDa560e946695d6f155dACaFC6f1F25C1F5AF);
+            address serviceManager = address(0x1DE75EaAb2df55d467494A172652579E6FA4540E);
+            signatureWithSaltAndExpiry = generateAvsRegistrationSignature(avsDirectory, operator, serviceManager, signerKey);
         }
 
         // unregister and re-register an operator with ARPA
