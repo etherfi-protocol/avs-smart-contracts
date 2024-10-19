@@ -13,9 +13,13 @@ interface IOpenlayerRegistryCoordinator {
         ) external;
 
         function serviceManager() external returns (address);
+        function stakeRegistry() external returns (address);
         function pubkeyRegistrationMessageHash(address operator) external view returns (BN254.G1Point memory);
 }
 
+interface IOpenlayerStakeRegistry {
+        function updateOperatorSignAddr(address operatorSignAddr) external;
+}
 
 contract OpenlayerTest is TestSetup, CryptoTestHelper {
 
@@ -27,7 +31,7 @@ contract OpenlayerTest is TestSetup, CryptoTestHelper {
         upgradeAvsContracts();
 
         address serviceManager = registryCoordinator.serviceManager();
-        console2.log("serviceManager", serviceManager);
+        address stakeRegistry = registryCoordinator.stakeRegistry();
 
         // pick an arbitrary operator not currently registered
         uint256 operatorId = 2;
@@ -69,6 +73,9 @@ contract OpenlayerTest is TestSetup, CryptoTestHelper {
             // They add the address of the signer as an extra param here. No idea why because it can be recovered from the signature?
             registryCoordinator.registerOperator(quorums, socket, blsPubkeyRegistrationParams, signatureWithSaltAndExpiry, address(operator));
         }
+
+        // change registered signer key
+        IOpenlayerStakeRegistry(stakeRegistry).updateOperatorSignAddr(address(0xabcdef1234));
 
     }
 
