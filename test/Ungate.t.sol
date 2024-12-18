@@ -48,7 +48,6 @@ contract UngateTest is TestSetup, CryptoTestHelper {
 
             // convert to format expected by eigenlayer helpers
             BN254.G1Point memory message = BN254.G1Point({ X: registrationMessage[0], Y: registrationMessage[1] });
-            console2.log("original message", message.X, message.Y);
 
             // sign
             blsPubkeyRegistrationParams = generateSignedPubkeyRegistrationParams(message, blsPrivKey);
@@ -63,7 +62,7 @@ contract UngateTest is TestSetup, CryptoTestHelper {
 
             bool valid = OthenticBLSAuthLibrary.isValidSignature(OthenticBLSAuthLibrary.Signature(blsSignature), operator, address(serviceManager), blsPubkey);
             console2.log("Valid:", valid);
-            return;
+            //return;
 
 
         }
@@ -75,9 +74,6 @@ contract UngateTest is TestSetup, CryptoTestHelper {
            signatureWithSaltAndExpiry = generateAvsRegistrationSignature(avsDirectory, operator, address(serviceManager), signerKey);
         }
 
-        //uint256[2] memory signature = new uint256[](2);
-
-
         {
             vm.prank(operator);
             serviceManager.registerAsOperator(
@@ -88,17 +84,6 @@ contract UngateTest is TestSetup, CryptoTestHelper {
             );
 
         }
-
-        /*
-        // register
-        {
-            bytes memory quorums = hex"00";
-            string memory socket = "https://test-socket";
-
-            vm.prank(operator);
-            registryCoordinator.registerOperator(quorums, socket, blsPubkeyRegistrationParams, signatureWithSaltAndExpiry);
-        }
-        */
     }
 
 }

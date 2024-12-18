@@ -35,17 +35,9 @@ library OthenticBLSAuthLibrary {
     ) internal view returns (bool) {
         /// @dev signature verification succeeds if signature and pubkey are empty
         if (!_signature.signature.isValidSignature()) return false;
-        
-        console2.log("passed valid check");
-        console2.log("Signature", _signature.signature[0], _signature.signature[1]);
-        console2.log("signer", _signer);
-        console2.log("contract", _contract);
-        console2.log(_blsKey[0], _blsKey[1], _blsKey[2], _blsKey[3]);
 
         uint256[2] memory _messageHash = _message(_signer, _contract);
-        console2.log("hash", _messageHash[0], _messageHash[1]);
         (bool _callSuccess, bool _result) = _signature.signature.verifySingle(_blsKey, _messageHash);
-        console2.log("callSuccess", _callSuccess, "result", _result);
         return _callSuccess && _result;
     }
 
