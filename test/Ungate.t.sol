@@ -133,6 +133,7 @@ contract UngateTest is TestSetup, CryptoTestHelper {
             blsSignature[0] = blsPubkeyRegistrationParams.pubkeyRegistrationSignature.X;
             blsSignature[1] = blsPubkeyRegistrationParams.pubkeyRegistrationSignature.Y;
 
+
             // XXX: verification precompile expects little endian for G2 hence reversing the parts of each point
             blsPubkey[0] = blsPubkeyRegistrationParams.pubkeyG2.X[1];
             blsPubkey[1] = blsPubkeyRegistrationParams.pubkeyG2.X[0];
