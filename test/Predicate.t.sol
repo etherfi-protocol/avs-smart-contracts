@@ -8,6 +8,8 @@ import "../src/eigenlayer-interfaces/IAVSDirectory.sol";
 
 interface IPredicateRegistry {
     function registerOperatorToAVS(address _operatorSigningKey, ISignatureUtils.SignatureWithSaltAndExpiry memory _operatorSignature) external;
+    function deregisterOperatorFromAVS(address _operator) external;
+    function rotatePredicateSigningKey(address _oldSigningKey, address _newSigningKey) external;
 }
 
 contract PredicateTest is TestSetup, CryptoTestHelper {
@@ -16,7 +18,10 @@ contract PredicateTest is TestSetup, CryptoTestHelper {
         initializeRealisticFork(MAINNET_FORK);
         upgradeAvsContracts();
 
-        IPredicateRegistry predicateRegsitry = IPredicateRegistry(address(0xaCB91045B8bBa06f9026e1A30855B6C4A1c5BaC6));
+        // Predicate has moved to a new service manager
+        //IPredicateRegistry predicateRegsitry = IPredicateRegistry(address(0xaCB91045B8bBa06f9026e1A30855B6C4A1c5BaC6));
+
+        IPredicateRegistry predicateRegsitry = IPredicateRegistry(address(0xf6f4A30EeF7cf51Ed4Ee1415fB3bFDAf3694B0d2));
         address serviceManager = address(predicateRegsitry); // registry contract is used as the service manager
 
         uint256 operatorId = 1;
@@ -43,5 +48,11 @@ contract PredicateTest is TestSetup, CryptoTestHelper {
 
         vm.prank(operator);
         predicateRegsitry.registerOperatorToAVS(externalSigningAddress, signatureWithSaltAndExpiry);
+
+        // test rotating key
+        uint256 newSigningKey = 0xAABBAABB;
+        address newSigningAddress = vm.addr(newSigningKey);
+        vm.prank(operator);
+        predicateRegsitry.rotatePredicateSigningKey(externalSigningAddress, newSigningAddress);
     }
 }
