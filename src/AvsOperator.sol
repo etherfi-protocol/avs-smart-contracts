@@ -10,8 +10,6 @@ import "./eigenlayer-interfaces/ISignatureUtils.sol";
 import "./eigenlayer-interfaces/IBLSApkRegistry.sol";
 import  "./eigenlayer-interfaces/IDelegationManager.sol";
 
-
-
 contract AvsOperator is IERC1271, IBeacon {
 
     address public avsOperatorsManager;
@@ -27,7 +25,6 @@ contract AvsOperator is IERC1271, IBeacon {
         bool isRegistered;
     }
     mapping(address => AvsInfo) public avsInfos;
-
 
     //--------------------------------------------------------------------------------------
     //----------------------------------  Admin  -------------------------------------------
@@ -104,7 +101,6 @@ contract AvsOperator is IERC1271, IBeacon {
         return recovered == ecdsaSigner ? this.isValidSignature.selector : bytes4(0xffffffff);
     }
 
-
     function verifyBlsKeyAgainstHash(BN254.G1Point memory pubkeyRegistrationMessageHash, IBLSApkRegistry.PubkeyRegistrationParams memory params) public view returns (bool) {
         // gamma = h(sigma, P, P', H(m))
         uint256 gamma = uint256(keccak256(abi.encodePacked(
@@ -143,18 +139,21 @@ contract AvsOperator is IERC1271, IBeacon {
     }
 
     //--------------------------------------------------------------------------------------
-    //---------------------------------  ARPA Functions  -----------------------------------
+    //------------------------------  ARPA Operations  -------------------------------------
     //--------------------------------------------------------------------------------------
 
-    function registerWithARPA(address arpaNodeRegistry, bytes calldata dkgPublicKey, bool isEigenlayerNode, address assetAccountAddress, ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry) external managerOnly {
-        IARPANodeRegsitry(arpaNodeRegistry).nodeRegister(dkgPublicKey, isEigenlayerNode, assetAccountAddress, signatureWithSaltAndExpiry);
+    function registerWithARPA(bytes calldata dkgPublicKey, bool isEigenlayerNode, address assetAccountAddress, ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry) external managerOnly {
+        IARPANodeRegsitry arpaNodeRegsitry = IARPANodeRegsitry(address(0x58e39879374901e17A790af039DC9Ac06baCf25B));
+        arpaNodeRegsitry.nodeRegister(dkgPublicKey, isEigenlayerNode, assetAccountAddress, signatureWithSaltAndExpiry);
     }
 
-    function unregisterFromARPA(address arpaNodeRegistry) external managerOnly {
-        IARPANodeRegsitry(arpaNodeRegistry).nodeQuit();
+    function unregisterFromARPA() external managerOnly {
+        IARPANodeRegsitry arpaNodeRegsitry = IARPANodeRegsitry(address(0x58e39879374901e17A790af039DC9Ac06baCf25B));
+        arpaNodeRegsitry.nodeQuit();
     }
 
-    function logOffFromARPA(address arpaNodeRegistry) external managerOnly {
-        IARPANodeRegsitry(arpaNodeRegistry).nodeLogOff();
+    function logOffFromARPA() external managerOnly {
+        IARPANodeRegsitry arpaNodeRegsitry = IARPANodeRegsitry(address(0x58e39879374901e17A790af039DC9Ac06baCf25B));
+        arpaNodeRegsitry.nodeLogOff();
     }
 }
