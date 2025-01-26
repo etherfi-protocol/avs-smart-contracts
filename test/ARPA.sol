@@ -70,9 +70,8 @@ contract ARPATest is TestSetup, CryptoTestHelper {
             avsOperatorManager.updateEcdsaSigner(operatorId, signer);
         }
 
-        // unregister the operator from ARPA
+        // unregister the operator with ARPA
         {
-            // call from our smart contract operator to unregister the operator
             vm.prank(operator);
             arpaNodeRegsitry.nodeQuit();
         }
@@ -95,9 +94,8 @@ contract ARPATest is TestSetup, CryptoTestHelper {
             avsOperatorManager.updateEcdsaSigner(operatorId, signer);
         }
 
-        // log off the operator from ARPA
+        // log off the operator with ARPA
         {
-            // call from our smart contract operator to log off the operator
             vm.prank(operator);
             arpaNodeRegsitry.nodeLogOff();
         }
