@@ -62,9 +62,20 @@ contract ARPATest is TestSetup, CryptoTestHelper {
         uint256 operatorId = 1;
         address operator = address(avsOperatorManager.avsOperators(operatorId));
 
-        // call from our smart contract operator to unregister the operator
-        vm.prank(operator);
-        arpaNodeRegsitry.nodeQuit();
+        // re-configure signer for testing
+        uint256 signerKey = 0x1234abcd;
+        address signer = vm.addr(signerKey);
+        {
+            vm.prank(admin);
+            avsOperatorManager.updateEcdsaSigner(operatorId, signer);
+        }
+
+        // unregister the operator from ARPA
+        {
+            // call from our smart contract operator to unregister the operator
+            vm.prank(operator);
+            arpaNodeRegsitry.nodeQuit();
+        }
     }
 
     function test_logOffARPA() public {
@@ -76,8 +87,19 @@ contract ARPATest is TestSetup, CryptoTestHelper {
         uint256 operatorId = 1;
         address operator = address(avsOperatorManager.avsOperators(operatorId));
 
-        // call from our smart contract operator to log off the operator
-        vm.prank(operator);
-        arpaNodeRegsitry.nodeLogOff();
+        // re-configure signer for testing
+        uint256 signerKey = 0x1234abcd;
+        address signer = vm.addr(signerKey);
+        {
+            vm.prank(admin);
+            avsOperatorManager.updateEcdsaSigner(operatorId, signer);
+        }
+
+        // log off the operator from ARPA
+        {
+            // call from our smart contract operator to log off the operator
+            vm.prank(operator);
+            arpaNodeRegsitry.nodeLogOff();
+        }
     }
 }
