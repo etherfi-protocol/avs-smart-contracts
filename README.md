@@ -19,65 +19,37 @@ All forwarded operator actions will emit the following event
 
 This can be used to track which actions have been taken by which operators
 
-## `updateAllowedOperatorCalls` function
-
-The `updateAllowedOperatorCalls` function allows an admin to specify which calls a node runner can make against which target contracts through the operator contract. This function takes four parameters:
-
-- `_operatorId`: The ID of the operator.
-- `_target`: The address of the target contract.
-- `_selector`: The function selector of the target contract.
-- `_allowed`: A boolean value indicating whether the call is allowed or not.
-
-## `allowedOperatorCalls` mapping
-
-The `allowedOperatorCalls` mapping is used to store the allowed calls that an operator can make. It is a nested mapping with the following structure:
-
-- The first key is the operator ID.
-- The second key is the target contract address.
-- The third key is the function selector.
-- The value is a boolean indicating whether the call is allowed or not.
-
-## `AllowedOperatorCallsUpdated` event
-
-The `AllowedOperatorCallsUpdated` event is emitted whenever the `updateAllowedOperatorCalls` function is called. This event has four parameters:
-
-- `_operatorId`: The ID of the operator.
-- `_target`: The address of the target contract.
-- `_selector`: The function selector of the target contract.
-- `_allowed`: A boolean value indicating whether the call is allowed or not.
-
 ## ARPA Node Registration
 
-The ARPA node registration process is now fully implemented and tested. The following functions have been added to handle ARPA node registration:
+The ARPA node registration process is now fully implemented and tested. The following functions are available for ARPA node registration:
 
-### `registerAsOperator`
+### AvsOperatorManager.sol
 
-The `registerAsOperator` function registers the operator with the ARPA node registry. This function takes the following parameters:
+    function registerAsOperator(uint256 _id, IDelegationManager.OperatorDetails calldata _detail, string calldata _metaDataURI) external onlyOwner {
+        avsOperators[_id].registerAsOperator(delegationManager, _detail, _metaDataURI);
+        emit RegisteredAsOperator(_id, _detail);
+    }
 
-- `_delegationManager`: The delegation manager contract.
-- `_detail`: The operator details.
-- `_metaDataURI`: The metadata URI.
+    function modifyOperatorDetails(uint256 _id, IDelegationManager.OperatorDetails calldata _newOperatorDetails) external onlyAdmin {
+        avsOperators[_id].modifyOperatorDetails(delegationManager, _newOperatorDetails);
+        emit ModifiedOperatorDetails(_id, _newOperatorDetails);
+    }
 
-### `modifyOperatorDetails`
+    function updateOperatorMetadataURI(uint256 _id, string calldata _metadataURI) external onlyAdmin {
+        avsOperators[_id].updateOperatorMetadataURI(delegationManager, _metadataURI);
+        emit UpdatedOperatorMetadataURI(_id, _metadataURI);
+    }
 
-The `modifyOperatorDetails` function modifies the operator details in the ARPA node registry. This function takes the following parameter:
+### AvsOperator.sol
 
-- `_delegationManager`: The delegation manager contract.
-- `_newOperatorDetails`: The new operator details.
+    function registerAsOperator(IDelegationManager _delegationManager, IDelegationManager.OperatorDetails calldata _detail, string calldata _metaDataURI) external managerOnly {
+        _delegationManager.registerAsOperator(_detail, _metaDataURI);
+    }
 
-### `updateOperatorMetadataURI`
+    function modifyOperatorDetails(IDelegationManager _delegationManager, IDelegationManager.OperatorDetails calldata _newOperatorDetails) external managerOnly {
+        _delegationManager.modifyOperatorDetails(_newOperatorDetails);
+    }
 
-The `updateOperatorMetadataURI` function updates the operator metadata URI in the ARPA node registry. This function takes the following parameter:
-
-- `_delegationManager`: The delegation manager contract.
-- `_metadataURI`: The new metadata URI.
-
-### Test Case
-
-The test case in `test/ARPA.sol` now fully verifies the ARPA node registration process. The test case includes the following steps:
-
-- Initialize the necessary contracts and variables.
-- Update the ECDSA signer for the operator.
-- Generate and sign the operator registration digest with the ECDSA key.
-- Unregister and re-register the operator with the ARPA node registry.
-- Verify that the operator is correctly registered with the ARPA node registry.
+    function updateOperatorMetadataURI(IDelegationManager _delegationManager, string calldata _metadataURI) external managerOnly {
+        _delegationManager.updateOperatorMetadataURI(_metadataURI);
+    }
