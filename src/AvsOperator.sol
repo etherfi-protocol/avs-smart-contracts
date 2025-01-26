@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/utils/Address.sol";
@@ -10,8 +9,6 @@ import "./eigenlayer-interfaces/IRegistryCoordinator.sol";
 import "./eigenlayer-interfaces/ISignatureUtils.sol";
 import "./eigenlayer-interfaces/IBLSApkRegistry.sol";
 import  "./eigenlayer-interfaces/IDelegationManager.sol";
-
-
 
 contract AvsOperator is IERC1271, IBeacon {
 
@@ -28,7 +25,6 @@ contract AvsOperator is IERC1271, IBeacon {
         bool isRegistered;
     }
     mapping(address => AvsInfo) public avsInfos;
-
 
     //--------------------------------------------------------------------------------------
     //----------------------------------  Admin  -------------------------------------------
@@ -58,6 +54,7 @@ contract AvsOperator is IERC1271, IBeacon {
 
     // forwards a whitelisted call from the manager contract to an arbitrary target
     function forwardCall(address to, bytes calldata data) external managerOnly returns (bytes memory) {
+        require(Address.isContract(to), "TARGET_NOT_CONTRACT");
         return Address.functionCall(to, data);
     }
 
@@ -67,6 +64,7 @@ contract AvsOperator is IERC1271, IBeacon {
 
     // register this contract as a valid operator that can be delegated funds within eigenlayer core contracts
     function registerAsOperator(IDelegationManager _delegationManager, IDelegationManager.OperatorDetails calldata _detail, string calldata _metaDataURI) external managerOnly {
+        require(Address.isContract(address(_delegationManager)), "DELEGATION_MANAGER_NOT_CONTRACT");
         _delegationManager.registerAsOperator(_detail, _metaDataURI);
     }
 
@@ -104,7 +102,6 @@ contract AvsOperator is IERC1271, IBeacon {
         (address recovered, ) = ECDSA.tryRecover(_digestHash, _signature);
         return recovered == ecdsaSigner ? this.isValidSignature.selector : bytes4(0xffffffff);
     }
-
 
     function verifyBlsKeyAgainstHash(BN254.G1Point memory pubkeyRegistrationMessageHash, IBLSApkRegistry.PubkeyRegistrationParams memory params) public view returns (bool) {
         // gamma = h(sigma, P, P', H(m))
