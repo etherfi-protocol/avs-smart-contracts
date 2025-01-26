@@ -1,3 +1,5 @@
+--snip--
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/utils/Address.sol";
@@ -138,7 +140,16 @@ contract AvsOperator is IERC1271, IBeacon {
     }
 
     //--------------------------------------------------------------------------------------
-    //------------------------------------  ARPA Node Registration  ------------------------
+    //------------------------------------  Modifiers  -------------------------------------
+    //--------------------------------------------------------------------------------------
+
+    modifier managerOnly() {
+        require(msg.sender == avsOperatorsManager, "NOT_MANAGER");
+        _;
+    }
+
+    //--------------------------------------------------------------------------------------
+    //--------------------------------  ARPA Functions  --------------------------------------
     //--------------------------------------------------------------------------------------
 
     function registerWithARPA(IARPANodeRegsitry arpaNodeRegsitry, bytes calldata dkgPublicKey, bool isEigenlayerNode, address assetAccountAddress, ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry) external managerOnly {
@@ -151,14 +162,5 @@ contract AvsOperator is IERC1271, IBeacon {
 
     function logOffFromARPA(IARPANodeRegsitry arpaNodeRegsitry) external managerOnly {
         arpaNodeRegsitry.nodeLogOff();
-    }
-
-    //--------------------------------------------------------------------------------------
-    //------------------------------------  Modifiers  -------------------------------------
-    //--------------------------------------------------------------------------------------
-
-    modifier managerOnly() {
-        require(msg.sender == avsOperatorsManager, "NOT_MANAGER");
-        _;
     }
 }
