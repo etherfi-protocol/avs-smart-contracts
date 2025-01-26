@@ -18,3 +18,31 @@ All forwarded operator actions will emit the following event
     event ForwardedOperatorCall(uint256 indexed id, address indexed target, bytes4 indexed selector, bytes data, address sender);
 
 This can be used to track which actions have been taken by which operators
+
+## Installing Foundry
+
+To install Foundry, you can use the following command:
+
+```sh
+curl -L https://foundry.paradigm.xyz | bash
+```
+
+This command downloads and runs the Foundry installation script from the Paradigm website. Foundry is a smart contract development toolchain that includes Forge for building and testing smart contracts. 
+
+After running the command, you can verify the installation by checking the version of Forge:
+
+```sh
+forge --version
+```
+
+## Running Tests with Foundry
+
+To run tests using Foundry, you can use the following command:
+
+```sh
+forge test -vvv
+```
+
+This command runs the tests in the project with verbose output. For more details on how Foundry is used in this repository, you can refer to the following files:
+* `.github/workflows/test.yml` - This GitHub Actions workflow file includes steps to install Foundry and run Forge build and tests.
+* `foundry.toml` - This configuration file specifies the settings for Foundry in this project.

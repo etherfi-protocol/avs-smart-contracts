@@ -13,9 +13,13 @@ jobs:
     name: Foundry project
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
+
+      - name: Install Foundry
+        run: |
+          curl -L https://foundry.paradigm.xyz | bash
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -32,3 +36,8 @@ jobs:
         run: |
           forge test -vvv
         id: test
+
+      - name: Run Forge tests with fork
+        run: |
+          forge test --fork-url <your_rpc_url>
+        id: test-fork
