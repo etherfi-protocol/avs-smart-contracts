@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/utils/Address.sol";
@@ -11,7 +10,11 @@ import "./eigenlayer-interfaces/ISignatureUtils.sol";
 import "./eigenlayer-interfaces/IBLSApkRegistry.sol";
 import  "./eigenlayer-interfaces/IDelegationManager.sol";
 
-
+interface IARPANodeRegistry {
+    function nodeRegister(bytes calldata dkgPublicKey, bool isEigenlayerNode, address assetAccountAddress, ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry) external;
+    function nodeQuit() external;
+    function nodeLogOff() external;
+}
 
 contract AvsOperator is IERC1271, IBeacon {
 
@@ -141,5 +144,24 @@ contract AvsOperator is IERC1271, IBeacon {
     modifier managerOnly() {
         require(msg.sender == avsOperatorsManager, "NOT_MANAGER");
         _;
+    }
+
+    //--------------------------------------------------------------------------------------
+    //---------------------------------  ARPA Functions  -----------------------------------
+    //--------------------------------------------------------------------------------------
+
+    function registerWithARPA(bytes calldata dkgPublicKey, bool isEigenlayerNode, address assetAccountAddress, ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry) external managerOnly {
+        IARPANodeRegistry arpaNodeRegistry = IARPANodeRegistry(address(0x58e39879374901e17A790af039DC9Ac06baCf25B));
+        arpaNodeRegistry.nodeRegister(dkgPublicKey, isEigenlayerNode, assetAccountAddress, signatureWithSaltAndExpiry);
+    }
+
+    function unregisterFromARPA() external managerOnly {
+        IARPANodeRegistry arpaNodeRegistry = IARPANodeRegistry(address(0x58e39879374901e17A790af039DC9Ac06baCf25B));
+        arpaNodeRegistry.nodeQuit();
+    }
+
+    function logOffFromARPA() external managerOnly {
+        IARPANodeRegistry arpaNodeRegistry = IARPANodeRegistry(address(0x58e39879374901e17A790af039DC9Ac06baCf25B));
+        arpaNodeRegistry.nodeLogOff();
     }
 }
