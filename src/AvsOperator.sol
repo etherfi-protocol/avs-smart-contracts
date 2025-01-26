@@ -10,11 +10,7 @@ import "./eigenlayer-interfaces/ISignatureUtils.sol";
 import "./eigenlayer-interfaces/IBLSApkRegistry.sol";
 import  "./eigenlayer-interfaces/IDelegationManager.sol";
 
-interface IARPANodeRegistry {
-    function nodeRegister(bytes calldata dkgPublicKey, bool isEigenlayerNode, address assetAccountAddress, ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry) external;
-    function nodeQuit() external;
-    function nodeLogOff() external;
-}
+
 
 contract AvsOperator is IERC1271, IBeacon {
 
@@ -150,18 +146,15 @@ contract AvsOperator is IERC1271, IBeacon {
     //---------------------------------  ARPA Functions  -----------------------------------
     //--------------------------------------------------------------------------------------
 
-    function registerWithARPA(bytes calldata dkgPublicKey, bool isEigenlayerNode, address assetAccountAddress, ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry) external managerOnly {
-        IARPANodeRegistry arpaNodeRegistry = IARPANodeRegistry(address(0x58e39879374901e17A790af039DC9Ac06baCf25B));
-        arpaNodeRegistry.nodeRegister(dkgPublicKey, isEigenlayerNode, assetAccountAddress, signatureWithSaltAndExpiry);
+    function registerWithARPA(address arpaNodeRegistry, bytes calldata dkgPublicKey, bool isEigenlayerNode, address assetAccountAddress, ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry) external managerOnly {
+        IARPANodeRegsitry(arpaNodeRegistry).nodeRegister(dkgPublicKey, isEigenlayerNode, assetAccountAddress, signatureWithSaltAndExpiry);
     }
 
-    function unregisterFromARPA() external managerOnly {
-        IARPANodeRegistry arpaNodeRegistry = IARPANodeRegistry(address(0x58e39879374901e17A790af039DC9Ac06baCf25B));
-        arpaNodeRegistry.nodeQuit();
+    function unregisterFromARPA(address arpaNodeRegistry) external managerOnly {
+        IARPANodeRegsitry(arpaNodeRegistry).nodeQuit();
     }
 
-    function logOffFromARPA() external managerOnly {
-        IARPANodeRegistry arpaNodeRegistry = IARPANodeRegistry(address(0x58e39879374901e17A790af039DC9Ac06baCf25B));
-        arpaNodeRegistry.nodeLogOff();
+    function logOffFromARPA(address arpaNodeRegistry) external managerOnly {
+        IARPANodeRegsitry(arpaNodeRegistry).nodeLogOff();
     }
 }
