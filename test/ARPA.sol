@@ -72,6 +72,7 @@ contract ARPATest is TestSetup, CryptoTestHelper {
 
         // unregister the operator from ARPA
         {
+            // call from our smart contract operator to unregister the operator
             vm.prank(operator);
             arpaNodeRegsitry.nodeQuit();
         }
@@ -96,6 +97,7 @@ contract ARPATest is TestSetup, CryptoTestHelper {
 
         // log off the operator from ARPA
         {
+            // call from our smart contract operator to log off the operator
             vm.prank(operator);
             arpaNodeRegsitry.nodeLogOff();
         }
