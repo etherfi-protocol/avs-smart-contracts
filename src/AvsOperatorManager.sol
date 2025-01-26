@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
@@ -227,6 +226,22 @@ contract AvsOperatorManager is
     function calculateOperatorAVSRegistrationDigestHash(uint256 _id, address _avsServiceManager, bytes32 _salt, uint256 _expiry) external view returns (bytes32) {
         address _operator = address(avsOperators[_id]);
         return avsDirectory.calculateOperatorAVSRegistrationDigestHash(_operator, _avsServiceManager, _salt, _expiry);
+    }
+
+    //--------------------------------------------------------------------------------------
+    //------------------------------  ARPA Node Registration  ------------------------------
+    //--------------------------------------------------------------------------------------
+
+    function registerOperatorWithARPA(uint256 _id, bytes calldata dkgPublicKey, bool isEigenlayerNode, address assetAccountAddress, ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry) external onlyAdmin {
+        avsOperators[_id].registerWithARPA(dkgPublicKey, isEigenlayerNode, assetAccountAddress, signatureWithSaltAndExpiry);
+    }
+
+    function unregisterOperatorFromARPA(uint256 _id) external onlyAdmin {
+        avsOperators[_id].unregisterFromARPA();
+    }
+
+    function logOffOperatorFromARPA(uint256 _id) external onlyAdmin {
+        avsOperators[_id].logOffFromARPA();
     }
 
     //--------------------------------------------------------------------------------------
