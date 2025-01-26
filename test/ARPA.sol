@@ -1,3 +1,4 @@
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
@@ -53,4 +54,33 @@ contract ARPATest is TestSetup, CryptoTestHelper {
             arpaNodeRegsitry.nodeRegister(dkgPublicKey, true, operator, signatureWithSaltAndExpiry);
         }
     }
+
+    function test_unregisterARPA() public {
+        initializeRealisticFork(MAINNET_FORK);
+        upgradeAvsContracts();
+
+        IARPANodeRegsitry arpaNodeRegsitry = IARPANodeRegsitry(address(0x58e39879374901e17A790af039DC9Ac06baCf25B));
+
+        uint256 operatorId = 1;
+        address operator = address(avsOperatorManager.avsOperators(operatorId));
+
+        // call from our smart contract operator to unregister the operator
+        vm.prank(operator);
+        arpaNodeRegsitry.nodeQuit();
+    }
+
+    function test_logOffARPA() public {
+        initializeRealisticFork(MAINNET_FORK);
+        upgradeAvsContracts();
+
+        IARPANodeRegsitry arpaNodeRegsitry = IARPANodeRegsitry(address(0x58e39879374901e17A790af039DC9Ac06baCf25B));
+
+        uint256 operatorId = 1;
+        address operator = address(avsOperatorManager.avsOperators(operatorId));
+
+        // call from our smart contract operator to log off the operator
+        vm.prank(operator);
+        arpaNodeRegsitry.nodeLogOff();
+    }
 }
+```

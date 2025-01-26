@@ -1,3 +1,4 @@
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
@@ -11,7 +12,11 @@ import "./eigenlayer-interfaces/ISignatureUtils.sol";
 import "./eigenlayer-interfaces/IBLSApkRegistry.sol";
 import  "./eigenlayer-interfaces/IDelegationManager.sol";
 
-
+interface IARPANodeRegsitry {
+    function nodeRegister(bytes calldata dkgPublicKey, bool isEigenlayerNode, address assetAccountAddress, ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry) external;
+    function nodeQuit() external;
+    function nodeLogOff() external;
+}
 
 contract AvsOperator is IERC1271, IBeacon {
 
@@ -59,6 +64,22 @@ contract AvsOperator is IERC1271, IBeacon {
     // forwards a whitelisted call from the manager contract to an arbitrary target
     function forwardCall(address to, bytes calldata data) external managerOnly returns (bytes memory) {
         return Address.functionCall(to, data);
+    }
+
+    //--------------------------------------------------------------------------------------
+    //-----------------------------  ARPA Node Operations  ---------------------------------
+    //--------------------------------------------------------------------------------------
+
+    function registerWithARPA(bytes calldata dkgPublicKey, bool isEigenlayerNode, address assetAccountAddress, ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry, address arpaNodeRegistry) external managerOnly {
+        IARPANodeRegsitry(arpaNodeRegistry).nodeRegister(dkgPublicKey, isEigenlayerNode, assetAccountAddress, signatureWithSaltAndExpiry);
+    }
+
+    function unregisterFromARPA(address arpaNodeRegistry) external managerOnly {
+        IARPANodeRegsitry(arpaNodeRegistry).nodeQuit();
+    }
+
+    function logOffFromARPA(address arpaNodeRegistry) external managerOnly {
+        IARPANodeRegsitry(arpaNodeRegistry).nodeLogOff();
     }
 
     //--------------------------------------------------------------------------------------
@@ -143,3 +164,4 @@ contract AvsOperator is IERC1271, IBeacon {
         _;
     }
 }
+```
