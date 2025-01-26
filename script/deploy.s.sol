@@ -27,5 +27,11 @@ contract DeployAvsContracts is Script {
         cmds[1] = "submodule";
         cmds[2] = "update --init --recursive";
         vm.ffi(cmds);
+
+        // Add the forge build command
+        string[] memory forgeCmds = new string[](2);
+        forgeCmds[0] = "forge";
+        forgeCmds[1] = "build";
+        vm.ffi(forgeCmds);
     }
 }
