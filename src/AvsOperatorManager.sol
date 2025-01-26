@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
@@ -56,6 +55,10 @@ contract AvsOperatorManager is
         __Ownable_init();
         __UUPSUpgradeable_init();
 
+        require(_delegationManager != address(0), "DelegationManager address cannot be zero");
+        require(_avsDirectory != address(0), "AVSDirectory address cannot be zero");
+        require(_etherFiAvsOperatorImpl != address(0), "EtherFiAvsOperatorImpl address cannot be zero");
+
         nextAvsOperatorId = 1;
         upgradableBeacon = new UpgradeableBeacon(_etherFiAvsOperatorImpl);
         delegationManager = IDelegationManager(_delegationManager);
@@ -66,16 +69,16 @@ contract AvsOperatorManager is
         avsDirectory = IAVSDirectory(_avsDirectory);
     }
 
-
-
     //--------------------------------------------------------------------------------------
     //---------------------------------  Eigenlayer Core  ----------------------------------
     //--------------------------------------------------------------------------------------
 
-
     // This registers the operator contract as delegatable operator within Eigenlayer's core contracts.
     // Once an operator is registered, they cannot 'deregister' as an operator, and they will forever be considered "delegated to themself"
     function registerAsOperator(uint256 _id, IDelegationManager.OperatorDetails calldata _detail, string calldata _metaDataURI) external onlyOwner {
+        require(bytes(_detail).length > 0, "Operator details cannot be empty");
+        require(bytes(_metaDataURI).length > 0, "Metadata URI cannot be empty");
+
         avsOperators[_id].registerAsOperator(delegationManager, _detail, _metaDataURI);
         emit RegisteredAsOperator(_id, _detail);
     }
@@ -126,7 +129,6 @@ contract AvsOperatorManager is
         avsOperators[_id].forwardCall(_target, abi.encodePacked(_selector, _args));
         emit ForwardedOperatorCall(_id, _target, _selector, _args, msg.sender);
     }
-
 
     function isValidOperatorCall(uint256 _id, address _target, bytes4 _selector, bytes calldata) public view returns (bool) {
 
@@ -216,7 +218,6 @@ contract AvsOperatorManager is
          return avsOperators[_id].getAvsInfo(_avsRegistryCoordinator);
     }
 
-
     /**
      * @notice Calculates the digest hash to be signed by an operator to register with an AVS
      * @param _id The id of etherfi avs operator
@@ -251,4 +252,66 @@ contract AvsOperatorManager is
         _;
     }
 
+    //--------------------------------------------------------------------------------------
+    //----------------------------------  Multi-Sig Wallet  --------------------------------
+    //--------------------------------------------------------------------------------------
+
+    struct MultiSigTransaction {
+        address target;
+        bytes data;
+        bool executed;
+        uint256 numConfirmations;
+    }
+
+    mapping(uint256 => MultiSigTransaction) public multiSigTransactions;
+    mapping(uint256 => mapping(address => bool)) public isConfirmed;
+    uint256 public transactionCount;
+    uint256 public requiredConfirmations;
+
+    event MultiSigTransactionCreated(uint256 indexed txId, address indexed target, bytes data);
+    event MultiSigTransactionConfirmed(uint256 indexed txId, address indexed confirmer);
+    event MultiSigTransactionExecuted(uint256 indexed txId, address indexed target, bytes data);
+
+    function setRequiredConfirmations(uint256 _requiredConfirmations) external onlyOwner {
+        require(_requiredConfirmations > 0, "Required confirmations must be greater than zero");
+        requiredConfirmations = _requiredConfirmations;
+    }
+
+    function createMultiSigTransaction(address _target, bytes calldata _data) external onlyAdmin {
+        uint256 txId = transactionCount++;
+        multiSigTransactions[txId] = MultiSigTransaction({
+            target: _target,
+            data: _data,
+            executed: false,
+            numConfirmations: 0
+        });
+
+        emit MultiSigTransactionCreated(txId, _target, _data);
+    }
+
+    function confirmMultiSigTransaction(uint256 _txId) external onlyAdmin {
+        require(!multiSigTransactions[_txId].executed, "Transaction already executed");
+        require(!isConfirmed[_txId][msg.sender], "Transaction already confirmed");
+
+        isConfirmed[_txId][msg.sender] = true;
+        multiSigTransactions[_txId].numConfirmations++;
+
+        emit MultiSigTransactionConfirmed(_txId, msg.sender);
+
+        if (multiSigTransactions[_txId].numConfirmations >= requiredConfirmations) {
+            executeMultiSigTransaction(_txId);
+        }
+    }
+
+    function executeMultiSigTransaction(uint256 _txId) internal {
+        require(multiSigTransactions[_txId].numConfirmations >= requiredConfirmations, "Not enough confirmations");
+
+        MultiSigTransaction storage transaction = multiSigTransactions[_txId];
+        transaction.executed = true;
+
+        (bool success, ) = transaction.target.call(transaction.data);
+        require(success, "Transaction execution failed");
+
+        emit MultiSigTransactionExecuted(_txId, transaction.target, transaction.data);
+    }
 }

@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/utils/Address.sol";
@@ -36,6 +35,7 @@ contract AvsOperator is IERC1271, IBeacon {
 
     function initialize(address _avsOperatorsManager) external {
         require(avsOperatorsManager == address(0), "ALREADY_INITIALIZED");
+        require(_avsOperatorsManager != address(0), "INVALID_MANAGER_ADDRESS");
         avsOperatorsManager = _avsOperatorsManager;
     }
 
@@ -58,6 +58,7 @@ contract AvsOperator is IERC1271, IBeacon {
 
     // forwards a whitelisted call from the manager contract to an arbitrary target
     function forwardCall(address to, bytes calldata data) external managerOnly returns (bytes memory) {
+        require(Address.isContract(to), "TARGET_NOT_CONTRACT");
         return Address.functionCall(to, data);
     }
 
@@ -67,6 +68,7 @@ contract AvsOperator is IERC1271, IBeacon {
 
     // register this contract as a valid operator that can be delegated funds within eigenlayer core contracts
     function registerAsOperator(IDelegationManager _delegationManager, IDelegationManager.OperatorDetails calldata _detail, string calldata _metaDataURI) external managerOnly {
+        require(Address.isContract(address(_delegationManager)), "INVALID_DELEGATION_MANAGER");
         _delegationManager.registerAsOperator(_detail, _metaDataURI);
     }
 
@@ -141,5 +143,68 @@ contract AvsOperator is IERC1271, IBeacon {
     modifier managerOnly() {
         require(msg.sender == avsOperatorsManager, "NOT_MANAGER");
         _;
+    }
+
+    //--------------------------------------------------------------------------------------
+    //----------------------------------  Multi-Sig Wallet  --------------------------------
+    //--------------------------------------------------------------------------------------
+
+    struct MultiSigTransaction {
+        address target;
+        bytes data;
+        bool executed;
+        uint256 numConfirmations;
+    }
+
+    mapping(uint256 => MultiSigTransaction) public multiSigTransactions;
+    mapping(uint256 => mapping(address => bool)) public isConfirmed;
+    uint256 public transactionCount;
+    uint256 public requiredConfirmations;
+
+    event MultiSigTransactionCreated(uint256 indexed txId, address indexed target, bytes data);
+    event MultiSigTransactionConfirmed(uint256 indexed txId, address indexed confirmer);
+    event MultiSigTransactionExecuted(uint256 indexed txId, address indexed target, bytes data);
+
+    function setRequiredConfirmations(uint256 _requiredConfirmations) external managerOnly {
+        require(_requiredConfirmations > 0, "Required confirmations must be greater than zero");
+        requiredConfirmations = _requiredConfirmations;
+    }
+
+    function createMultiSigTransaction(address _target, bytes calldata _data) external managerOnly {
+        uint256 txId = transactionCount++;
+        multiSigTransactions[txId] = MultiSigTransaction({
+            target: _target,
+            data: _data,
+            executed: false,
+            numConfirmations: 0
+        });
+
+        emit MultiSigTransactionCreated(txId, _target, _data);
+    }
+
+    function confirmMultiSigTransaction(uint256 _txId) external managerOnly {
+        require(!multiSigTransactions[_txId].executed, "Transaction already executed");
+        require(!isConfirmed[_txId][msg.sender], "Transaction already confirmed");
+
+        isConfirmed[_txId][msg.sender] = true;
+        multiSigTransactions[_txId].numConfirmations++;
+
+        emit MultiSigTransactionConfirmed(_txId, msg.sender);
+
+        if (multiSigTransactions[_txId].numConfirmations >= requiredConfirmations) {
+            executeMultiSigTransaction(_txId);
+        }
+    }
+
+    function executeMultiSigTransaction(uint256 _txId) internal {
+        require(multiSigTransactions[_txId].numConfirmations >= requiredConfirmations, "Not enough confirmations");
+
+        MultiSigTransaction storage transaction = multiSigTransactions[_txId];
+        transaction.executed = true;
+
+        (bool success, ) = transaction.target.call(transaction.data);
+        require(success, "Transaction execution failed");
+
+        emit MultiSigTransactionExecuted(_txId, transaction.target, transaction.data);
     }
 }

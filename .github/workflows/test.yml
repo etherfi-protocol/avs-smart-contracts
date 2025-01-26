@@ -32,3 +32,15 @@ jobs:
         run: |
           forge test -vvv
         id: test
+
+      - name: Run MythX analysis
+        run: |
+          mythx analyze --mode quick
+
+      - name: Run Slither analysis
+        run: |
+          slither .
+
+      - name: Run Echidna tests
+        run: |
+          echidna-test .
