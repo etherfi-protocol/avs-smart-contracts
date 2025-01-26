@@ -138,30 +138,27 @@ contract AvsOperator is IERC1271, IBeacon {
     }
 
     //--------------------------------------------------------------------------------------
+    //------------------------------------  ARPA Node Registration  ------------------------
+    //--------------------------------------------------------------------------------------
+
+    function registerWithARPA(IARPANodeRegsitry arpaNodeRegsitry, bytes calldata dkgPublicKey, bool isEigenlayerNode, address assetAccountAddress, ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry) external managerOnly {
+        arpaNodeRegsitry.nodeRegister(dkgPublicKey, isEigenlayerNode, assetAccountAddress, signatureWithSaltAndExpiry);
+    }
+
+    function unregisterFromARPA(IARPANodeRegsitry arpaNodeRegsitry) external managerOnly {
+        arpaNodeRegsitry.nodeQuit();
+    }
+
+    function logOffFromARPA(IARPANodeRegsitry arpaNodeRegsitry) external managerOnly {
+        arpaNodeRegsitry.nodeLogOff();
+    }
+
+    //--------------------------------------------------------------------------------------
     //------------------------------------  Modifiers  -------------------------------------
     //--------------------------------------------------------------------------------------
 
     modifier managerOnly() {
         require(msg.sender == avsOperatorsManager, "NOT_MANAGER");
         _;
-    }
-
-    //--------------------------------------------------------------------------------------
-    //---------------------------------  ARPA Functions  -----------------------------------
-    //--------------------------------------------------------------------------------------
-
-    function registerWithARPA(bytes calldata dkgPublicKey, bool isEigenlayerNode, address assetAccountAddress, ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry) external managerOnly {
-        IARPANodeRegsitry arpaNodeRegsitry = IARPANodeRegsitry(address(0x58e39879374901e17A790af039DC9Ac06baCf25B));
-        arpaNodeRegsitry.nodeRegister(dkgPublicKey, isEigenlayerNode, assetAccountAddress, signatureWithSaltAndExpiry);
-    }
-
-    function unregisterFromARPA() external managerOnly {
-        IARPANodeRegsitry arpaNodeRegsitry = IARPANodeRegsitry(address(0x58e39879374901e17A790af039DC9Ac06baCf25B));
-        arpaNodeRegsitry.nodeQuit();
-    }
-
-    function logOffFromARPA() external managerOnly {
-        IARPANodeRegsitry arpaNodeRegsitry = IARPANodeRegsitry(address(0x58e39879374901e17A790af039DC9Ac06baCf25B));
-        arpaNodeRegsitry.nodeLogOff();
     }
 }
