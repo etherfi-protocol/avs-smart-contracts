@@ -1,4 +1,4 @@
---snip--
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
@@ -64,6 +64,22 @@ contract AvsOperator is IERC1271, IBeacon {
     // forwards a whitelisted call from the manager contract to an arbitrary target
     function forwardCall(address to, bytes calldata data) external managerOnly returns (bytes memory) {
         return Address.functionCall(to, data);
+    }
+
+    //--------------------------------------------------------------------------------------
+    //-----------------------------  ARPA Node Operations  ---------------------------------
+    //--------------------------------------------------------------------------------------
+
+    function registerWithARPA(bytes calldata dkgPublicKey, bool isEigenlayerNode, address assetAccountAddress, ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry, address arpaNodeRegistry) external managerOnly {
+        IARPANodeRegsitry(arpaNodeRegistry).nodeRegister(dkgPublicKey, isEigenlayerNode, assetAccountAddress, signatureWithSaltAndExpiry);
+    }
+
+    function unregisterFromARPA(address arpaNodeRegistry) external managerOnly {
+        IARPANodeRegsitry(arpaNodeRegistry).nodeQuit();
+    }
+
+    function logOffFromARPA(address arpaNodeRegistry) external managerOnly {
+        IARPANodeRegsitry(arpaNodeRegistry).nodeLogOff();
     }
 
     //--------------------------------------------------------------------------------------
@@ -147,20 +163,5 @@ contract AvsOperator is IERC1271, IBeacon {
         require(msg.sender == avsOperatorsManager, "NOT_MANAGER");
         _;
     }
-
-    //--------------------------------------------------------------------------------------
-    //--------------------------------  ARPA Functions  --------------------------------------
-    //--------------------------------------------------------------------------------------
-
-    function registerWithARPA(IARPANodeRegsitry arpaNodeRegsitry, bytes calldata dkgPublicKey, bool isEigenlayerNode, address assetAccountAddress, ISignatureUtils.SignatureWithSaltAndExpiry memory signatureWithSaltAndExpiry) external managerOnly {
-        arpaNodeRegsitry.nodeRegister(dkgPublicKey, isEigenlayerNode, assetAccountAddress, signatureWithSaltAndExpiry);
-    }
-
-    function unregisterFromARPA(IARPANodeRegsitry arpaNodeRegsitry) external managerOnly {
-        arpaNodeRegsitry.nodeQuit();
-    }
-
-    function logOffFromARPA(IARPANodeRegsitry arpaNodeRegsitry) external managerOnly {
-        arpaNodeRegsitry.nodeLogOff();
-    }
 }
+```
