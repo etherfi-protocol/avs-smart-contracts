@@ -6,3 +6,7 @@ libs = ["lib"]
 fs_permissions = [{ access = "read", path = "./test"}]
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+
+[profile.ci]
+optimize = true
+optimize_runs = 200
