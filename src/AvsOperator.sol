@@ -29,14 +29,22 @@ contract AvsOperator is IERC1271, IBeacon {
     }
     mapping(address => AvsInfo) public avsInfos;
 
+    bool initialized;
 
     //--------------------------------------------------------------------------------------
     //----------------------------------  Admin  -------------------------------------------
     //--------------------------------------------------------------------------------------
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        initialized = true; // prevent initialization of the proxy implementation
+    }
+
     function initialize(address _avsOperatorsManager) external {
+        require(!initialized, "ALREADY_INITIALIZED");
         require(avsOperatorsManager == address(0), "ALREADY_INITIALIZED");
         avsOperatorsManager = _avsOperatorsManager;
+        initialized = true;
     }
 
     /// @dev implementation address for beacon proxy.
@@ -66,16 +74,16 @@ contract AvsOperator is IERC1271, IBeacon {
     //--------------------------------------------------------------------------------------
 
     // register this contract as a valid operator that can be delegated funds within eigenlayer core contracts
-    function registerAsOperator(IDelegationManager _delegationManager, IDelegationManager.OperatorDetails calldata _detail, string calldata _metaDataURI) external managerOnly {
-        _delegationManager.registerAsOperator(_detail, _metaDataURI);
+    function registerAsOperator(IDelegationManager _delegationManager, address _delegationApprover, uint32 _allocationDelay, string calldata _metaDataURI) external managerOnly {
+        _delegationManager.registerAsOperator(_delegationApprover, _allocationDelay, _metaDataURI);
     }
 
-    function modifyOperatorDetails(IDelegationManager _delegationManager, IDelegationManager.OperatorDetails calldata _newOperatorDetails) external managerOnly {
-        _delegationManager.modifyOperatorDetails(_newOperatorDetails);
+    function modifyOperatorDetails(IDelegationManager _delegationManager, address _delegationApprover) external managerOnly {
+        _delegationManager.modifyOperatorDetails(address(this), _delegationApprover);
     }
 
     function updateOperatorMetadataURI(IDelegationManager _delegationManager, string calldata _metadataURI) external managerOnly {
-        _delegationManager.updateOperatorMetadataURI(_metadataURI);
+        _delegationManager.updateOperatorMetadataURI(address(this), _metadataURI);
     }
 
     function updateAvsNodeRunner(address _avsNodeRunner) external managerOnly {

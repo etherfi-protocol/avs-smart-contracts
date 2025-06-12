@@ -18,12 +18,15 @@ contract TestSetup is Test {
     IBLSApkRegistry.PubkeyRegistrationParams samplePubkeyRegistrationParams;
     ISignatureUtils.SignatureWithSaltAndExpiry sampleRegistrationSignature;
 
+    IRoleRegistry roleRegistry = IRoleRegistry(0x62247D29B4B9BECf4BB73E0c722cf6445cfC7cE9);
+
+
     function setUp() public {
         admin = vm.addr(0x9876543210);
         vm.startPrank(admin);
 
         // deploy manager
-        AvsOperatorManager avsOperatorManagerImpl = new AvsOperatorManager();
+        AvsOperatorManager avsOperatorManagerImpl = new AvsOperatorManager(address(roleRegistry));
         ERC1967Proxy avvsOperatorManagerProxy = new ERC1967Proxy(address(avsOperatorManagerImpl), "");
         avsOperatorManager = AvsOperatorManager(address(avvsOperatorManagerProxy));
 
@@ -98,13 +101,11 @@ contract TestSetup is Test {
         //avsOperatorManager.upgradeToAndCall(address(new AvsOperatorManager()), "");
 
         bytes4 selector = bytes4(keccak256(bytes("upgradeTo(address)")));
-        bytes memory data = abi.encodeWithSelector(selector, address(new AvsOperatorManager()));
+        bytes memory data = abi.encodeWithSelector(selector, address(new AvsOperatorManager(address(roleRegistry))));
         (bool success, ) = address(avsOperatorManager).call(data);
         require(success, "Call failed");
 
         avsOperatorManager.upgradeEtherFiAvsOperator(address(new AvsOperator()));
-
-        avsOperatorManager.updateAdmin(admin, true);
 
         vm.stopPrank();
     }
