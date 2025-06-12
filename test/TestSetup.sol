@@ -22,6 +22,7 @@ contract TestSetup is Test {
     IStrategyManager strategyManager = IStrategyManager(0x858646372CC42E1A627fcE94aa7A7033e7CF075A);
     IDelegationManager delegationManager = IDelegationManager(0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A);
     IAVSDirectory avsDirectory = IAVSDirectory(0x135DDa560e946695d6f155dACaFC6f1F25C1F5AF);
+    address etherfiRestaker = 0x1B7a4C3797236A1C37f8741c0Be35c2c72736fFf;
 
 
     function setUp() public {
@@ -34,7 +35,7 @@ contract TestSetup is Test {
         avsOperatorManager = AvsOperatorManager(address(avvsOperatorManagerProxy));
 
         // initialize manager
-        AvsOperator avsOperatorImpl = new AvsOperator(address(strategyManager), address(delegationManager));
+        AvsOperator avsOperatorImpl = new AvsOperator(address(strategyManager), address(delegationManager), etherfiRestaker);
         avsOperatorManager.initialize(address(delegationManager), address(avsDirectory), address(avsOperatorImpl));
 
         // deploy a couple operators
@@ -106,7 +107,7 @@ contract TestSetup is Test {
         (bool success, ) = address(avsOperatorManager).call(data);
         require(success, "Call failed");
 
-        avsOperatorManager.upgradeEtherFiAvsOperator(address(new AvsOperator(address(strategyManager), address(delegationManager))));
+        avsOperatorManager.upgradeEtherFiAvsOperator(address(new AvsOperator(address(strategyManager), address(delegationManager), etherfiRestaker)));
 
         vm.stopPrank();
     }

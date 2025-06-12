@@ -44,9 +44,6 @@ contract AvsOperatorManager is
     mapping(uint256 => mapping(address => mapping(bytes4 => bool))) public allowedOperatorCalls;
     mapping(address => mapping(bytes4 => bool)) public allowedAdminCalls;
 
-    IStrategyManager public immutable strategyManager;
-    address public immutable etherfiRestaker;
-
     //---------------------------------------------------------------------------
     //---------------------------  ROLES  ---------------------------------------
     //---------------------------------------------------------------------------
@@ -192,7 +189,7 @@ contract AvsOperatorManager is
     //--------------------------------------------------------------------------------------
 
     function withdrawOperatorFundsToRestaker(uint256 _id, address _token, uint256 _amount) external onlyAdmin {
-        
+        avsOperators[_id].withdrawFundsToRestaker(_token, _amount);
     }
 
     function updateAvsNodeRunner(uint256 _id, address _avsNodeRunner) external onlyAdmin {

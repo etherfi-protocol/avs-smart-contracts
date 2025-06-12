@@ -34,15 +34,17 @@ contract AvsOperator is IERC1271, IBeacon {
 
     IStrategyManager public immutable strategyManager;
     IDelegationManager public immutable delegationManager;
+    address public immutable etherfiRestaker;
 
     //--------------------------------------------------------------------------------------
-    //----------------------------------  Admin  -------------------------------------------
+    //------------------------------  Deployment  ------------------------------------------
     //--------------------------------------------------------------------------------------
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(address _strategyManager, address _delegationManager) {
+    constructor(address _strategyManager, address _delegationManager, address _etherfiRestaker) {
         strategyManager = IStrategyManager(_strategyManager);
         delegationManager = IDelegationManager(_delegationManager);
+        etherfiRestaker = _etherfiRestaker;
         initialized = true; // prevent initialization of the proxy implementation
     }
 
@@ -66,12 +68,20 @@ contract AvsOperator is IERC1271, IBeacon {
         return beacon.implementation();
     }
 
+    //--------------------------------------------------------------------------------------
+    //----------------------------------  Admin  -------------------------------------------
+    //--------------------------------------------------------------------------------------
+
     function updateAvsNodeRunner(address _avsNodeRunner) external onlyManager {
         avsNodeRunner = _avsNodeRunner;
     }
 
     function updateEcdsaSigner(address _ecdsaSigner) external onlyManager {
         ecdsaSigner = _ecdsaSigner;
+    }
+
+    function withdrawFundsToRestaker(address _token, uint256 _amount) external onlyManager {
+        IERC20(_token).transfer(address(etherfiRestaker), _amount);
     }
 
     //--------------------------------------------------------------------------------------
