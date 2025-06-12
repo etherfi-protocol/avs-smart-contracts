@@ -101,7 +101,7 @@ contract EtherFiAvsOperatorsManagerTest is TestSetup, CryptoTestHelper {
 
         // this particular call hasn't been whitelisted
         vm.prank(operatorOneRunner);
-        vm.expectRevert(AvsOperatorManager.InvalidOperatorCall.selector);
+        vm.expectRevert(IAvsOperatorManager.InvalidOperatorCall.selector);
         avsOperatorManager.forwardOperatorCall(operatorId, target, selector, args);
 
         // only admin can update the whitelist

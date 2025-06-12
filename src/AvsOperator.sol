@@ -10,12 +10,13 @@ import "./eigenlayer-interfaces/IRegistryCoordinator.sol";
 import "./eigenlayer-interfaces/ISignatureUtils.sol";
 import "./eigenlayer-interfaces/IBLSApkRegistry.sol";
 import  "./eigenlayer-interfaces/IDelegationManager.sol";
+import "./AvsOperatorManager.sol";
 
 
 
 contract AvsOperator is IERC1271, IBeacon {
 
-    address public avsOperatorsManager;
+    AvsOperatorManager public avsOperatorManager;
     address public ecdsaSigner;   // ECDSA signer that ether.fi owns
     address public avsNodeRunner; // Staking Company such as DSRV, Pier Two, Nethermind, ...
 
@@ -29,14 +30,29 @@ contract AvsOperator is IERC1271, IBeacon {
     }
     mapping(address => AvsInfo) public avsInfos;
 
+    bool initialized;
+
+    IStrategyManager public immutable strategyManager;
+    IDelegationManager public immutable delegationManager;
+    address public immutable etherfiRestaker;
 
     //--------------------------------------------------------------------------------------
-    //----------------------------------  Admin  -------------------------------------------
+    //------------------------------  Deployment  ------------------------------------------
     //--------------------------------------------------------------------------------------
 
-    function initialize(address _avsOperatorsManager) external {
-        require(avsOperatorsManager == address(0), "ALREADY_INITIALIZED");
-        avsOperatorsManager = _avsOperatorsManager;
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor(address _strategyManager, address _delegationManager, address _etherfiRestaker) {
+        strategyManager = IStrategyManager(_strategyManager);
+        delegationManager = IDelegationManager(_delegationManager);
+        etherfiRestaker = _etherfiRestaker;
+        initialized = true; // prevent initialization of the proxy implementation
+    }
+
+    function initialize(address _avsOperatorManager) external {
+        require(!initialized, "ALREADY_INITIALIZED");
+        require(address(avsOperatorManager) == address(0), "ALREADY_INITIALIZED");
+        avsOperatorManager = AvsOperatorManager(_avsOperatorManager);
+        initialized = true;
     }
 
     /// @dev implementation address for beacon proxy.
@@ -53,37 +69,63 @@ contract AvsOperator is IERC1271, IBeacon {
     }
 
     //--------------------------------------------------------------------------------------
-    //------------------------------  AVS Operations  --------------------------------------
+    //----------------------------------  Admin  -------------------------------------------
+    //--------------------------------------------------------------------------------------
+
+    function updateAvsNodeRunner(address _avsNodeRunner) external onlyManager {
+        avsNodeRunner = _avsNodeRunner;
+    }
+
+    function updateEcdsaSigner(address _ecdsaSigner) external onlyManager {
+        ecdsaSigner = _ecdsaSigner;
+    }
+
+    function withdrawFundsToRestaker(address _token, uint256 _amount) external onlyManager {
+        IERC20(_token).transfer(address(etherfiRestaker), _amount);
+    }
+
+    //--------------------------------------------------------------------------------------
+    //-------------------------------  Call Forwarding  ------------------------------------
     //--------------------------------------------------------------------------------------
 
     // forwards a whitelisted call from the manager contract to an arbitrary target
-    function forwardCall(address to, bytes calldata data) external managerOnly returns (bytes memory) {
+    function forwardCall(address to, bytes calldata data) external onlyManager returns (bytes memory) {
         return Address.functionCall(to, data);
     }
 
     //--------------------------------------------------------------------------------------
-    //--------------------------------  AVS Metadata  --------------------------------------
+    //--------------------------------  Eigenlayer  ----------------------------------------
     //--------------------------------------------------------------------------------------
 
     // register this contract as a valid operator that can be delegated funds within eigenlayer core contracts
-    function registerAsOperator(IDelegationManager _delegationManager, IDelegationManager.OperatorDetails calldata _detail, string calldata _metaDataURI) external managerOnly {
-        _delegationManager.registerAsOperator(_detail, _metaDataURI);
+    function registerAsOperator(address _delegationApprover, uint32 _allocationDelay, string calldata _metaDataURI) external onlyManager {
+        delegationManager.registerAsOperator(_delegationApprover, _allocationDelay, _metaDataURI);
     }
 
-    function modifyOperatorDetails(IDelegationManager _delegationManager, IDelegationManager.OperatorDetails calldata _newOperatorDetails) external managerOnly {
-        _delegationManager.modifyOperatorDetails(_newOperatorDetails);
+    function modifyOperatorDetails(address _delegationApprover) external onlyManager {
+        delegationManager.modifyOperatorDetails(address(this), _delegationApprover);
     }
 
-    function updateOperatorMetadataURI(IDelegationManager _delegationManager, string calldata _metadataURI) external managerOnly {
-        _delegationManager.updateOperatorMetadataURI(_metadataURI);
+    function updateOperatorMetadataURI(string calldata _metadataURI) external onlyManager {
+        delegationManager.updateOperatorMetadataURI(address(this), _metadataURI);
     }
 
-    function updateAvsNodeRunner(address _avsNodeRunner) external managerOnly {
-        avsNodeRunner = _avsNodeRunner;
+    function depositIntoStrategy(IStrategy strategy, address token, uint256 amount) external onlyManager {
+        IERC20(token).approve(address(strategyManager), amount);
+
+        strategyManager.depositIntoStrategy(strategy, IERC20(token), amount);
     }
 
-    function updateEcdsaSigner(address _ecdsaSigner) external managerOnly {
-        ecdsaSigner = _ecdsaSigner;
+    function queueWithdrawals(IDelegationManager.QueuedWithdrawalParams[] calldata params) external onlyManager returns (bytes32[] memory withdrawalRoots) {
+        return delegationManager.queueWithdrawals(params);
+    }
+
+    function completeQueuedWithdrawals(
+        IDelegationManager.Withdrawal[] calldata withdrawals,
+        IERC20[][] calldata tokens,
+        bool[] calldata receiveAsTokens
+    ) external onlyManager {
+        delegationManager.completeQueuedWithdrawals(withdrawals, tokens, receiveAsTokens);
     }
 
     // DEPRECATED
@@ -138,8 +180,8 @@ contract AvsOperator is IERC1271, IBeacon {
     //------------------------------------  Modifiers  -------------------------------------
     //--------------------------------------------------------------------------------------
 
-    modifier managerOnly() {
-        require(msg.sender == avsOperatorsManager, "NOT_MANAGER");
+    modifier onlyManager() {
+        require(msg.sender == address(avsOperatorManager), "NOT_MANAGER");
         _;
     }
 }

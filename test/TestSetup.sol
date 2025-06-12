@@ -18,20 +18,25 @@ contract TestSetup is Test {
     IBLSApkRegistry.PubkeyRegistrationParams samplePubkeyRegistrationParams;
     ISignatureUtils.SignatureWithSaltAndExpiry sampleRegistrationSignature;
 
+    IRoleRegistry roleRegistry = IRoleRegistry(0x62247D29B4B9BECf4BB73E0c722cf6445cfC7cE9);
+    IStrategyManager strategyManager = IStrategyManager(0x858646372CC42E1A627fcE94aa7A7033e7CF075A);
+    IDelegationManager delegationManager = IDelegationManager(0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A);
+    IAVSDirectory avsDirectory = IAVSDirectory(0x135DDa560e946695d6f155dACaFC6f1F25C1F5AF);
+    address etherfiRestaker = 0x1B7a4C3797236A1C37f8741c0Be35c2c72736fFf;
+
+
     function setUp() public {
         admin = vm.addr(0x9876543210);
         vm.startPrank(admin);
 
         // deploy manager
-        AvsOperatorManager avsOperatorManagerImpl = new AvsOperatorManager();
+        AvsOperatorManager avsOperatorManagerImpl = new AvsOperatorManager(address(roleRegistry));
         ERC1967Proxy avvsOperatorManagerProxy = new ERC1967Proxy(address(avsOperatorManagerImpl), "");
         avsOperatorManager = AvsOperatorManager(address(avvsOperatorManagerProxy));
 
         // initialize manager
-        AvsOperator avsOperatorImpl = new AvsOperator();
-        address delegationManager = address(0x1234); // TODO
-        address avsDirectory = address(0x1235); // TODO
-        avsOperatorManager.initialize(delegationManager, avsDirectory, address(avsOperatorImpl));
+        AvsOperator avsOperatorImpl = new AvsOperator(address(strategyManager), address(delegationManager), etherfiRestaker);
+        avsOperatorManager.initialize(address(delegationManager), address(avsDirectory), address(avsOperatorImpl));
 
         // deploy a couple operators
         avsOperatorManager.instantiateEtherFiAvsOperator(2);
@@ -98,13 +103,11 @@ contract TestSetup is Test {
         //avsOperatorManager.upgradeToAndCall(address(new AvsOperatorManager()), "");
 
         bytes4 selector = bytes4(keccak256(bytes("upgradeTo(address)")));
-        bytes memory data = abi.encodeWithSelector(selector, address(new AvsOperatorManager()));
+        bytes memory data = abi.encodeWithSelector(selector, address(new AvsOperatorManager(address(roleRegistry))));
         (bool success, ) = address(avsOperatorManager).call(data);
         require(success, "Call failed");
 
-        avsOperatorManager.upgradeEtherFiAvsOperator(address(new AvsOperator()));
-
-        avsOperatorManager.updateAdmin(admin, true);
+        avsOperatorManager.upgradeEtherFiAvsOperator(address(new AvsOperator(address(strategyManager), address(delegationManager), etherfiRestaker)));
 
         vm.stopPrank();
     }
