@@ -14,13 +14,15 @@ contract DeployAvsContracts is Script {
 
         // TODO(dave): set
         address roleRegistry;
-        if (roleRegistry == address(0)) {
-            revert("must set role registry");
+        address strategyManager;
+        address delegationManager;
+        if (roleRegistry == address(0) || strategyManager == address(0) || delegationManager == address(0)) {
+            revert("must set addresses");
         }
 
         vm.startBroadcast(address(0xf8a86ea1Ac39EC529814c377Bd484387D395421e));
         address newManagerImpl = address(new AvsOperatorManager(roleRegistry));
-        address newOperatorImpl = address(new AvsOperator());
+        address newOperatorImpl = address(new AvsOperator(strategyManager, delegationManager));
 
         console2.log("New manager:", newManagerImpl);
         console2.log("New operator:", newOperatorImpl);

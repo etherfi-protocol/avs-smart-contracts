@@ -19,6 +19,9 @@ contract TestSetup is Test {
     ISignatureUtils.SignatureWithSaltAndExpiry sampleRegistrationSignature;
 
     IRoleRegistry roleRegistry = IRoleRegistry(0x62247D29B4B9BECf4BB73E0c722cf6445cfC7cE9);
+    IStrategyManager strategyManager = IStrategyManager(0x858646372CC42E1A627fcE94aa7A7033e7CF075A);
+    IDelegationManager delegationManager = IDelegationManager(0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A);
+    IAVSDirectory avsDirectory = IAVSDirectory(0x135DDa560e946695d6f155dACaFC6f1F25C1F5AF);
 
 
     function setUp() public {
@@ -31,10 +34,8 @@ contract TestSetup is Test {
         avsOperatorManager = AvsOperatorManager(address(avvsOperatorManagerProxy));
 
         // initialize manager
-        AvsOperator avsOperatorImpl = new AvsOperator();
-        address delegationManager = address(0x1234); // TODO
-        address avsDirectory = address(0x1235); // TODO
-        avsOperatorManager.initialize(delegationManager, avsDirectory, address(avsOperatorImpl));
+        AvsOperator avsOperatorImpl = new AvsOperator(address(strategyManager), address(delegationManager));
+        avsOperatorManager.initialize(address(delegationManager), address(avsDirectory), address(avsOperatorImpl));
 
         // deploy a couple operators
         avsOperatorManager.instantiateEtherFiAvsOperator(2);
@@ -105,7 +106,7 @@ contract TestSetup is Test {
         (bool success, ) = address(avsOperatorManager).call(data);
         require(success, "Call failed");
 
-        avsOperatorManager.upgradeEtherFiAvsOperator(address(new AvsOperator()));
+        avsOperatorManager.upgradeEtherFiAvsOperator(address(new AvsOperator(address(strategyManager), address(delegationManager))));
 
         vm.stopPrank();
     }

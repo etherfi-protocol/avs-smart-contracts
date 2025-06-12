@@ -13,6 +13,7 @@ import "./interfaces/IAvsOperatorManager.sol";
 import "./interfaces/IRoleRegistry.sol";
 
 import "./eigenlayer-interfaces/IAVSDirectory.sol";
+import "./eigenlayer-interfaces/IStrategyManager.sol";
 
 contract AvsOperatorManager is
     IAvsOperatorManager,
@@ -43,6 +44,9 @@ contract AvsOperatorManager is
     mapping(uint256 => mapping(address => mapping(bytes4 => bool))) public allowedOperatorCalls;
     mapping(address => mapping(bytes4 => bool)) public allowedAdminCalls;
 
+    IStrategyManager public immutable strategyManager;
+    address public immutable etherfiRestaker;
+
     //---------------------------------------------------------------------------
     //---------------------------  ROLES  ---------------------------------------
     //---------------------------------------------------------------------------
@@ -50,6 +54,10 @@ contract AvsOperatorManager is
     IRoleRegistry public immutable roleRegistry;
     bytes32 public constant AVS_OPERATOR_MANAGER_ADMIN_ROLE = keccak256("AVS_OPERATOR_MANAGER_ADMIN_ROLE");
     bytes32 public constant AVS_OPERATOR_MANAGER_WHITELIST_UPDATER_ROLE = keccak256("AVS_OPERATOR_MANAGER_WHITELIST_UPDATER_ROLE");
+
+    //---------------------------------------------------------------------------
+    //---------------------------  DEPLOYMENT  ----------------------------------
+    //---------------------------------------------------------------------------
 
      /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(address _roleRegistry) {
@@ -84,27 +92,32 @@ contract AvsOperatorManager is
     // This registers the operator contract as delegatable operator within Eigenlayer's core contracts.
     // Once an operator is registered, they cannot 'deregister' as an operator, and they will forever be considered "delegated to themself"
     function registerAsOperator(uint256 _id, address _delegationApprover, uint32 _allocationDelay, string calldata _metaDataURI) external onlyWhitelistUpdater {
-        avsOperators[_id].registerAsOperator(delegationManager, _delegationApprover, _allocationDelay, _metaDataURI);
+        avsOperators[_id].registerAsOperator(_delegationApprover, _allocationDelay, _metaDataURI);
     }
 
     function modifyOperatorDetails(uint256 _id, address _delegationApprover) external onlyAdmin {
-        avsOperators[_id].modifyOperatorDetails(delegationManager, _delegationApprover);
+        avsOperators[_id].modifyOperatorDetails(_delegationApprover);
     }
 
     function updateOperatorMetadataURI(uint256 _id, string calldata _metadataURI) external onlyAdmin {
-        avsOperators[_id].updateOperatorMetadataURI(delegationManager, _metadataURI);
+        avsOperators[_id].updateOperatorMetadataURI(_metadataURI);
     }
 
-    function queueWithdrawals(IDelegationManager.QueuedWithdrawalParams[] calldata params) external onlyAdmin returns (bytes32[] memory withdrawalRoots) {
-        return delegationManager.queueWithdrawals(params);
+    function depositIntoStrategy(uint256 _id, IStrategy strategy, address token, uint256 amount) external onlyAdmin {
+        avsOperators[_id].depositIntoStrategy(strategy, token, amount);
+    }
+
+    function queueWithdrawals(uint256 _id, IDelegationManager.QueuedWithdrawalParams[] calldata params) external onlyAdmin returns (bytes32[] memory withdrawalRoots) {
+        return avsOperators[_id].queueWithdrawals(params);
     }
 
     function completeQueuedWithdrawals(
+        uint256 _id,
         IDelegationManager.Withdrawal[] calldata withdrawals,
         IERC20[][] calldata tokens,
         bool[] calldata receiveAsTokens
     ) external onlyAdmin {
-        delegationManager.completeQueuedWithdrawals(withdrawals, tokens, receiveAsTokens);
+        avsOperators[_id].completeQueuedWithdrawals(withdrawals, tokens, receiveAsTokens);
     }
 
     //--------------------------------------------------------------------------------------
@@ -177,6 +190,10 @@ contract AvsOperatorManager is
     //--------------------------------------------------------------------------------------
     //--------------------------------------  Admin  ---------------------------------------
     //--------------------------------------------------------------------------------------
+
+    function withdrawOperatorFundsToRestaker(uint256 _id, address _token, uint256 _amount) external onlyAdmin {
+        
+    }
 
     function updateAvsNodeRunner(uint256 _id, address _avsNodeRunner) external onlyAdmin {
         avsOperators[_id].updateAvsNodeRunner(_avsNodeRunner);
