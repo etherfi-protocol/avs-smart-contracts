@@ -104,12 +104,12 @@ contract EtherFiAvsOperatorsManagerTest is TestSetup, CryptoTestHelper {
         vm.expectRevert(AvsOperatorManager.InvalidOperatorCall.selector);
         avsOperatorManager.forwardOperatorCall(operatorId, target, selector, args);
 
-        // only admin can update the whitelist
+        // only owner can update the whitelist
         vm.prank(operatorOneRunner);
-        vm.expectRevert("INCORRECT_CALLER");
+        vm.expectRevert("Ownable: caller is not the owner");
         avsOperatorManager.updateAllowedOperatorCalls(operatorId, target, selector, true);
 
-        // update the whitelist
+        // update the whitelist (admin is the owner in local setup)
         vm.prank(admin);
         avsOperatorManager.updateAllowedOperatorCalls(operatorId, target, selector, true);
 
@@ -162,5 +162,112 @@ contract EtherFiAvsOperatorsManagerTest is TestSetup, CryptoTestHelper {
         vm.prank(avsOperatorManager.avsNodeRunner(operatorId));
         vm.expectRevert("RegistryCoordinator._registerOperator: operator already registered for some quorums being registered for");
         avsOperatorManager.forwardOperatorCall(operatorId, brevisRegistryCoordinator, selector, args);
+    }
+
+    // -------------------------------------------------------------------------
+    //  Tier B — Whitelist Enforcement Tests
+    // -------------------------------------------------------------------------
+
+    function test_adminForwardCallEnforcesWhitelist() public {
+        uint256 operatorId = 1;
+        address target = address(0xABCD);
+        bytes4 selector = bytes4(keccak256("someFunction()"));
+        bytes memory args = hex"";
+
+        // adminForwardCall must revert for non-whitelisted calls
+        vm.prank(admin);
+        vm.expectRevert(AvsOperatorManager.InvalidOperatorCall.selector);
+        avsOperatorManager.adminForwardCall(operatorId, target, selector, args);
+    }
+
+    function test_adminForwardCallSucceedsWhenWhitelisted() public {
+        uint256 operatorId = 1;
+        address target = address(avsOperatorManager);
+        bytes4 selector = avsOperatorManager.owner.selector;
+        bytes memory args = hex"";
+
+        // owner whitelists the call
+        vm.prank(admin);
+        avsOperatorManager.updateAllowedOperatorCalls(operatorId, target, selector, true);
+
+        // admin can now forward the whitelisted call
+        vm.prank(admin);
+        avsOperatorManager.adminForwardCall(operatorId, target, selector, args);
+    }
+
+    function test_updateAllowedOperatorCallsOnlyOwner() public {
+        uint256 operatorId = 1;
+        address target = address(0xABCD);
+        bytes4 selector = bytes4(keccak256("someFunction()"));
+
+        // a non-owner admin cannot update the whitelist
+        address nonOwnerAdmin = vm.addr(0xBBBBBBBB);
+        vm.prank(admin);
+        avsOperatorManager.updateAdmin(nonOwnerAdmin, true);
+
+        vm.prank(nonOwnerAdmin);
+        vm.expectRevert("Ownable: caller is not the owner");
+        avsOperatorManager.updateAllowedOperatorCalls(operatorId, target, selector, true);
+
+        // owner can update the whitelist
+        vm.prank(admin);
+        avsOperatorManager.updateAllowedOperatorCalls(operatorId, target, selector, true);
+        assertTrue(avsOperatorManager.allowedOperatorCalls(operatorId, target, selector));
+    }
+
+    function test_adminForwardCallRawInputEnforcesWhitelist() public {
+        uint256 operatorId = 1;
+        address target = address(0xABCD);
+        bytes4 selector = bytes4(keccak256("someFunction()"));
+        bytes memory rawInput = abi.encodePacked(selector, hex"00000000");
+
+        vm.prank(operatorOneRunner);
+        vm.expectRevert(AvsOperatorManager.InvalidOperatorCall.selector);
+        avsOperatorManager.forwardOperatorCall(operatorId, target, rawInput);
+    }
+
+    function test_noCallPathBypassesWhitelist() public {
+        uint256 operatorId = 1;
+        address target = address(0xABCD);
+        bytes4 selector = bytes4(keccak256("registerForOperatorSets(address,(address,uint32[],bytes))"));
+        bytes memory args = hex"";
+
+        // forwardOperatorCall rejects non-whitelisted
+        vm.prank(operatorOneRunner);
+        vm.expectRevert(AvsOperatorManager.InvalidOperatorCall.selector);
+        avsOperatorManager.forwardOperatorCall(operatorId, target, selector, args);
+
+        // adminForwardCall also rejects non-whitelisted
+        vm.prank(admin);
+        vm.expectRevert(AvsOperatorManager.InvalidOperatorCall.selector);
+        avsOperatorManager.adminForwardCall(operatorId, target, selector, args);
+
+        // raw-input overload also rejects non-whitelisted
+        bytes memory rawInput = abi.encodePacked(selector, args);
+        vm.prank(operatorOneRunner);
+        vm.expectRevert(AvsOperatorManager.InvalidOperatorCall.selector);
+        avsOperatorManager.forwardOperatorCall(operatorId, target, rawInput);
+    }
+
+    function test_whitelistRemovalBlocksSubsequentCalls() public {
+        uint256 operatorId = 1;
+        address target = address(avsOperatorManager);
+        bytes4 selector = avsOperatorManager.owner.selector;
+        bytes memory args = hex"";
+
+        // whitelist and verify it works
+        vm.prank(admin);
+        avsOperatorManager.updateAllowedOperatorCalls(operatorId, target, selector, true);
+
+        vm.prank(admin);
+        avsOperatorManager.adminForwardCall(operatorId, target, selector, args);
+
+        // revoke and verify it blocks
+        vm.prank(admin);
+        avsOperatorManager.updateAllowedOperatorCalls(operatorId, target, selector, false);
+
+        vm.prank(admin);
+        vm.expectRevert(AvsOperatorManager.InvalidOperatorCall.selector);
+        avsOperatorManager.adminForwardCall(operatorId, target, selector, args);
     }
 }

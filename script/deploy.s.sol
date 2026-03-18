@@ -22,3 +22,26 @@ contract DeployAvsContracts is Script {
 
     }
 }
+
+/// @notice Deploys a new AvsOperatorManager implementation that enforces the whitelist
+/// on all call paths (including adminForwardCall) and restricts whitelist updates to owner.
+/// The actual upgrade transaction must be executed by the proxy owner (multisig / timelock).
+contract DeployWhitelistEnforcementUpgrade is Script {
+
+    function run() public {
+        uint256 pk = vm.envUint("PRIVATE_KEY");
+
+        vm.startBroadcast(pk);
+        address newManagerImpl = address(new AvsOperatorManager());
+        vm.stopBroadcast();
+
+        bytes memory upgradeCalldata = abi.encodeWithSignature(
+            "upgradeTo(address)",
+            newManagerImpl
+        );
+
+        console2.log("New implementation:", newManagerImpl);
+        console2.log("upgradeTo calldata:");
+        console2.logBytes(upgradeCalldata);
+    }
+}

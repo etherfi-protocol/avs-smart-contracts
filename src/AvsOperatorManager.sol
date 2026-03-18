@@ -66,8 +66,6 @@ contract AvsOperatorManager is
         avsDirectory = IAVSDirectory(_avsDirectory);
     }
 
-
-
     //--------------------------------------------------------------------------------------
     //---------------------------------  Eigenlayer Core  ----------------------------------
     //--------------------------------------------------------------------------------------
@@ -120,11 +118,9 @@ contract AvsOperatorManager is
         emit ForwardedOperatorCall(_id, _target, _selector, _args, msg.sender);
     }
 
-    // Forward an arbitrary call to be run by the operator conract. Admins can ignore the call whitelist
+    // Forward a whitelisted call to be run by the operator contract
     function adminForwardCall(uint256 _id, address _target, bytes4 _selector, bytes calldata _args) external onlyAdmin {
-
-        avsOperators[_id].forwardCall(_target, abi.encodePacked(_selector, _args));
-        emit ForwardedOperatorCall(_id, _target, _selector, _args, msg.sender);
+        _forwardOperatorCall(_id, _target, _selector, _args);
     }
 
 
@@ -142,8 +138,9 @@ contract AvsOperatorManager is
     //--------------------------------------  Admin  ---------------------------------------
     //--------------------------------------------------------------------------------------
 
-    // specify which calls an node runner can make against which target contracts through the operator contract
-    function updateAllowedOperatorCalls(uint256 _operatorId, address _target, bytes4 _selector, bool _allowed) external onlyAdmin {
+    // specify which calls an node runner can make against which target contracts through the operator contract.
+    // restricted to owner (timelock) so that new call authorizations are publicly visible before execution.
+    function updateAllowedOperatorCalls(uint256 _operatorId, address _target, bytes4 _selector, bool _allowed) external onlyOwner {
         allowedOperatorCalls[_operatorId][_target][_selector] = _allowed;
         emit AllowedOperatorCallsUpdated(_operatorId, _target, _selector, _allowed);
     }
