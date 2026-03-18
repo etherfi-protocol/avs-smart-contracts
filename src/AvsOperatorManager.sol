@@ -35,6 +35,10 @@ contract AvsOperatorManager is
     // allowed calls that AvsRunner can trigger from operator contract
     mapping(uint256 => mapping(address => mapping(bytes4 => bool))) public allowedOperatorCalls;
 
+    // Blocked target — all forward calls to this address revert.
+    // Write-once via initializeV2; removal requires a full UUPS upgrade.
+    address public blockedAllocationManager;
+
     event ForwardedOperatorCall(uint256 indexed id, address indexed target, bytes4 indexed selector, bytes data, address sender);
     event CreatedEtherFiAvsOperator(uint256 indexed id, address etherFiAvsOperator);
     event RegisteredAsOperator(uint256 indexed id, IDelegationManager.OperatorDetails detail);
@@ -44,6 +48,7 @@ contract AvsOperatorManager is
     event UpdatedEcdsaSigner(uint256 indexed id, address ecdsaSigner);
     event AllowedOperatorCallsUpdated(uint256 indexed id, address indexed target, bytes4 indexed selector, bool allowed);
     event AdminUpdated(address indexed admin, bool isAdmin);
+    event AllocationManagerBlocked(address indexed allocationManager);
 
      /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -66,7 +71,12 @@ contract AvsOperatorManager is
         avsDirectory = IAVSDirectory(_avsDirectory);
     }
 
-
+    /// @notice One-shot initialization to block all forward calls to EigenLayer's AllocationManager.
+    /// No setter is provided — removal requires a full UUPS upgrade.
+    function initializeV2(address _allocationManager) external onlyOwner reinitializer(2) {
+        blockedAllocationManager = _allocationManager;
+        emit AllocationManagerBlocked(_allocationManager);
+    }
 
     //--------------------------------------------------------------------------------------
     //---------------------------------  Eigenlayer Core  ----------------------------------
@@ -95,6 +105,7 @@ contract AvsOperatorManager is
     //--------------------------------------------------------------------------------------
 
     error InvalidOperatorCall();
+    error SlashingPathBlocked();
 
     // Forward an arbitrary call to be run by the operator conract.
     // That operator must be approved for the specific method and target
@@ -114,6 +125,7 @@ contract AvsOperatorManager is
     }
 
     function _forwardOperatorCall(uint256 _id, address _target, bytes4 _selector, bytes calldata _args) private {
+        if (_target == blockedAllocationManager) revert SlashingPathBlocked();
         if (!isValidOperatorCall(_id, _target, _selector, _args)) revert InvalidOperatorCall();
 
         avsOperators[_id].forwardCall(_target, abi.encodePacked(_selector, _args));
@@ -122,7 +134,7 @@ contract AvsOperatorManager is
 
     // Forward an arbitrary call to be run by the operator conract. Admins can ignore the call whitelist
     function adminForwardCall(uint256 _id, address _target, bytes4 _selector, bytes calldata _args) external onlyAdmin {
-
+        if (_target == blockedAllocationManager) revert SlashingPathBlocked();
         avsOperators[_id].forwardCall(_target, abi.encodePacked(_selector, _args));
         emit ForwardedOperatorCall(_id, _target, _selector, _args, msg.sender);
     }
@@ -144,6 +156,7 @@ contract AvsOperatorManager is
 
     // specify which calls an node runner can make against which target contracts through the operator contract
     function updateAllowedOperatorCalls(uint256 _operatorId, address _target, bytes4 _selector, bool _allowed) external onlyAdmin {
+        if (_allowed && _target == blockedAllocationManager) revert SlashingPathBlocked();
         allowedOperatorCalls[_operatorId][_target][_selector] = _allowed;
         emit AllowedOperatorCallsUpdated(_operatorId, _target, _selector, _allowed);
     }

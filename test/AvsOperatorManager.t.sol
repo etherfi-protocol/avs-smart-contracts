@@ -163,4 +163,167 @@ contract EtherFiAvsOperatorsManagerTest is TestSetup, CryptoTestHelper {
         vm.expectRevert("RegistryCoordinator._registerOperator: operator already registered for some quorums being registered for");
         avsOperatorManager.forwardOperatorCall(operatorId, brevisRegistryCoordinator, selector, args);
     }
+
+    // -------------------------------------------------------------------------
+    //  Tier B — AllocationManager Block Tests
+    // -------------------------------------------------------------------------
+
+    address constant MOCK_ALLOCATION_MANAGER = address(0xABCD);
+
+    function _enableAllocationManagerBlock() internal {
+        vm.prank(admin);
+        avsOperatorManager.initializeV2(MOCK_ALLOCATION_MANAGER);
+    }
+
+    function test_adminForwardCallBlocksAllocationManager() public {
+        _enableAllocationManagerBlock();
+
+        uint256 operatorId = 1;
+        bytes4 selector = bytes4(keccak256("registerForOperatorSets(address,(address,uint32[],bytes))"));
+        bytes memory args = hex"";
+
+        vm.prank(admin);
+        vm.expectRevert(AvsOperatorManager.SlashingPathBlocked.selector);
+        avsOperatorManager.adminForwardCall(operatorId, MOCK_ALLOCATION_MANAGER, selector, args);
+    }
+
+    function test_forwardOperatorCallBlocksAllocationManager() public {
+        _enableAllocationManagerBlock();
+
+        uint256 operatorId = 1;
+        bytes4 selector = bytes4(keccak256("registerForOperatorSets(address,(address,uint32[],bytes))"));
+        bytes memory args = hex"";
+
+        vm.prank(operatorOneRunner);
+        vm.expectRevert(AvsOperatorManager.SlashingPathBlocked.selector);
+        avsOperatorManager.forwardOperatorCall(operatorId, MOCK_ALLOCATION_MANAGER, selector, args);
+    }
+
+    function test_forwardOperatorCallRawInputBlocksAllocationManager() public {
+        _enableAllocationManagerBlock();
+
+        uint256 operatorId = 1;
+        bytes4 selector = bytes4(keccak256("registerForOperatorSets(address,(address,uint32[],bytes))"));
+        bytes memory rawInput = abi.encodePacked(selector, hex"00000000");
+
+        vm.prank(operatorOneRunner);
+        vm.expectRevert(AvsOperatorManager.SlashingPathBlocked.selector);
+        avsOperatorManager.forwardOperatorCall(operatorId, MOCK_ALLOCATION_MANAGER, rawInput);
+    }
+
+    function test_updateAllowedOperatorCallsBlocksAllocationManager() public {
+        _enableAllocationManagerBlock();
+
+        uint256 operatorId = 1;
+        bytes4 selector = bytes4(keccak256("registerForOperatorSets(address,(address,uint32[],bytes))"));
+
+        vm.prank(admin);
+        vm.expectRevert(AvsOperatorManager.SlashingPathBlocked.selector);
+        avsOperatorManager.updateAllowedOperatorCalls(operatorId, MOCK_ALLOCATION_MANAGER, selector, true);
+    }
+
+    function test_updateAllowedOperatorCallsAllowsRemovingBlockedTarget() public {
+        _enableAllocationManagerBlock();
+
+        uint256 operatorId = 1;
+        bytes4 selector = bytes4(keccak256("registerForOperatorSets(address,(address,uint32[],bytes))"));
+
+        vm.prank(admin);
+        avsOperatorManager.updateAllowedOperatorCalls(operatorId, MOCK_ALLOCATION_MANAGER, selector, false);
+    }
+
+    function test_normalAdminForwardCallStillWorks() public {
+        _enableAllocationManagerBlock();
+
+        uint256 operatorId = 1;
+        address nonBlockedTarget = address(avsOperatorManager);
+        bytes4 selector = avsOperatorManager.owner.selector;
+        bytes memory args = hex"";
+
+        vm.prank(admin);
+        avsOperatorManager.adminForwardCall(operatorId, nonBlockedTarget, selector, args);
+    }
+
+    function test_normalForwardOperatorCallStillWorks() public {
+        _enableAllocationManagerBlock();
+
+        uint256 operatorId = 1;
+        address target = address(avsOperatorManager);
+        bytes4 selector = avsOperatorManager.owner.selector;
+        bytes memory args = hex"";
+
+        vm.prank(admin);
+        avsOperatorManager.updateAllowedOperatorCalls(operatorId, target, selector, true);
+
+        vm.prank(operatorOneRunner);
+        avsOperatorManager.forwardOperatorCall(operatorId, target, selector, args);
+    }
+
+    function test_initializeV2CannotBeCalledTwice() public {
+        _enableAllocationManagerBlock();
+
+        assertEq(avsOperatorManager.blockedAllocationManager(), MOCK_ALLOCATION_MANAGER);
+
+        vm.prank(admin);
+        vm.expectRevert("Initializable: contract is already initialized");
+        avsOperatorManager.initializeV2(address(0xDEAD));
+    }
+
+    function test_initializeV2OnlyOwner() public {
+        vm.prank(operatorOneRunner);
+        vm.expectRevert("Ownable: caller is not the owner");
+        avsOperatorManager.initializeV2(MOCK_ALLOCATION_MANAGER);
+    }
+
+    function test_blockIsInactiveBeforeInitializeV2() public {
+        assertEq(avsOperatorManager.blockedAllocationManager(), address(0));
+
+        uint256 operatorId = 1;
+        address target = address(avsOperatorManager);
+        bytes4 selector = avsOperatorManager.owner.selector;
+
+        vm.prank(admin);
+        avsOperatorManager.adminForwardCall(operatorId, target, selector, hex"");
+    }
+
+    function test_upgradeV2PreservesStorageAndSetsBlock() public {
+        initializeRealisticFork(MAINNET_FORK);
+
+        uint256 previousNextAvsOperatorId = avsOperatorManager.nextAvsOperatorId();
+        address previousDelegationManager = address(avsOperatorManager.delegationManager());
+        address previousAvsDirectory = address(avsOperatorManager.avsDirectory());
+        address previousOperator = address(avsOperatorManager.avsOperators(1));
+        address previousNodeRunner = AvsOperator(previousOperator).avsNodeRunner();
+        address previousSigner = AvsOperator(previousOperator).ecdsaSigner();
+
+        assertEq(avsOperatorManager.blockedAllocationManager(), address(0));
+
+        address owner = avsOperatorManager.owner();
+        vm.startPrank(owner);
+
+        AvsOperatorManager newImpl = new AvsOperatorManager();
+        bytes memory initData = abi.encodeCall(AvsOperatorManager.initializeV2, (MOCK_ALLOCATION_MANAGER));
+        bytes4 upgradeSelector = bytes4(keccak256(bytes("upgradeToAndCall(address,bytes)")));
+        bytes memory upgradeData = abi.encodeWithSelector(upgradeSelector, address(newImpl), initData);
+        (bool success, ) = address(avsOperatorManager).call(upgradeData);
+        require(success, "upgradeToAndCall failed");
+
+        avsOperatorManager.upgradeEtherFiAvsOperator(address(new AvsOperator()));
+        vm.stopPrank();
+
+        assertEq(previousNextAvsOperatorId, avsOperatorManager.nextAvsOperatorId());
+        assertEq(previousDelegationManager, address(avsOperatorManager.delegationManager()));
+        assertEq(previousAvsDirectory, address(avsOperatorManager.avsDirectory()));
+
+        address updatedOperator = address(avsOperatorManager.avsOperators(1));
+        assertEq(previousOperator, updatedOperator);
+        assertEq(previousNodeRunner, AvsOperator(updatedOperator).avsNodeRunner());
+        assertEq(previousSigner, AvsOperator(updatedOperator).ecdsaSigner());
+
+        assertEq(avsOperatorManager.blockedAllocationManager(), MOCK_ALLOCATION_MANAGER);
+
+        vm.prank(owner);
+        vm.expectRevert(AvsOperatorManager.SlashingPathBlocked.selector);
+        avsOperatorManager.adminForwardCall(1, MOCK_ALLOCATION_MANAGER, bytes4(0), hex"");
+    }
 }
