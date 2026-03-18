@@ -195,12 +195,12 @@ contract EtherFiAvsOperatorsManagerTest is TestSetup, CryptoTestHelper {
         avsOperatorManager.adminForwardCall(operatorId, target, selector, args);
     }
 
-    function test_updateAllowedOperatorCallsOnlyOwner() public {
+    function test_updateAllowedOperatorCallsOnlyOwnerCanGrant() public {
         uint256 operatorId = 1;
         address target = address(0xABCD);
         bytes4 selector = bytes4(keccak256("someFunction()"));
 
-        // a non-owner admin cannot update the whitelist
+        // a non-owner admin cannot grant
         address nonOwnerAdmin = vm.addr(0xBBBBBBBB);
         vm.prank(admin);
         avsOperatorManager.updateAdmin(nonOwnerAdmin, true);
@@ -209,10 +209,48 @@ contract EtherFiAvsOperatorsManagerTest is TestSetup, CryptoTestHelper {
         vm.expectRevert("Ownable: caller is not the owner");
         avsOperatorManager.updateAllowedOperatorCalls(operatorId, target, selector, true);
 
-        // owner can update the whitelist
+        // owner can grant
         vm.prank(admin);
         avsOperatorManager.updateAllowedOperatorCalls(operatorId, target, selector, true);
         assertTrue(avsOperatorManager.allowedOperatorCalls(operatorId, target, selector));
+    }
+
+    function test_adminCanRevokeWhitelistEntry() public {
+        uint256 operatorId = 1;
+        address target = address(avsOperatorManager);
+        bytes4 selector = avsOperatorManager.owner.selector;
+
+        // owner grants
+        vm.prank(admin);
+        avsOperatorManager.updateAllowedOperatorCalls(operatorId, target, selector, true);
+        assertTrue(avsOperatorManager.allowedOperatorCalls(operatorId, target, selector));
+
+        // non-owner admin revokes
+        address nonOwnerAdmin = vm.addr(0xBBBBBBBB);
+        vm.prank(admin);
+        avsOperatorManager.updateAdmin(nonOwnerAdmin, true);
+
+        vm.prank(nonOwnerAdmin);
+        avsOperatorManager.updateAllowedOperatorCalls(operatorId, target, selector, false);
+        assertFalse(avsOperatorManager.allowedOperatorCalls(operatorId, target, selector));
+
+        // forwarding now reverts
+        vm.prank(nonOwnerAdmin);
+        vm.expectRevert(AvsOperatorManager.InvalidOperatorCall.selector);
+        avsOperatorManager.adminForwardCall(operatorId, target, selector, hex"");
+    }
+
+    function test_nonAdminCannotRevoke() public {
+        uint256 operatorId = 1;
+        address target = address(avsOperatorManager);
+        bytes4 selector = avsOperatorManager.owner.selector;
+
+        vm.prank(admin);
+        avsOperatorManager.updateAllowedOperatorCalls(operatorId, target, selector, true);
+
+        vm.prank(operatorOneRunner);
+        vm.expectRevert("INCORRECT_CALLER");
+        avsOperatorManager.updateAllowedOperatorCalls(operatorId, target, selector, false);
     }
 
     function test_adminForwardCallRawInputEnforcesWhitelist() public {

@@ -138,9 +138,14 @@ contract AvsOperatorManager is
     //--------------------------------------  Admin  ---------------------------------------
     //--------------------------------------------------------------------------------------
 
-    // specify which calls an node runner can make against which target contracts through the operator contract.
-    // restricted to owner (timelock) so that new call authorizations are publicly visible before execution.
-    function updateAllowedOperatorCalls(uint256 _operatorId, address _target, bytes4 _selector, bool _allowed) external onlyOwner {
+    // Granting new whitelist entries requires owner (timelock) so authorizations are publicly visible.
+    // Revoking is admin-authorized so bad entries can be killed immediately without waiting for the timelock.
+    function updateAllowedOperatorCalls(uint256 _operatorId, address _target, bytes4 _selector, bool _allowed) external {
+        if (_allowed) {
+            _onlyOwner();
+        } else {
+            _onlyAdmin();
+        }
         allowedOperatorCalls[_operatorId][_target][_selector] = _allowed;
         emit AllowedOperatorCallsUpdated(_operatorId, _target, _selector, _allowed);
     }
@@ -229,6 +234,10 @@ contract AvsOperatorManager is
     //--------------------------------------------------------------------------------------
     //------------------------------------  Modifiers  -------------------------------------
     //--------------------------------------------------------------------------------------
+
+    function _onlyOwner() internal view {
+        _checkOwner();
+    }
 
     function _onlyAdmin() internal view {
         require(admins[msg.sender] || msg.sender == owner(), "INCORRECT_CALLER");
