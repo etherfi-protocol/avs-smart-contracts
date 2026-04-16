@@ -43,6 +43,9 @@ contract EigenDAOperator17RegistrationTest is Test, CryptoTestHelper {
 
     string constant REGISTRATION_JSON = "test/fixtures/eigenda-prepare-registration-17.json";
 
+    // Deposit amount for stETH into EL strategy
+    uint256 constant DEPOSIT_AMOUNT = 100_000 ether;
+
     // Test-only: vm.store overwrites ecdsaSigner slot so we can sign in the test.
     // In production the real ecdsaSigner 0xF2E184... is unchanged, CLI signs off-chain.
     uint256 constant TEST_SIGNER_KEY = 0x1234abcd5678ef;
@@ -155,7 +158,7 @@ contract EigenDAOperator17RegistrationTest is Test, CryptoTestHelper {
     /// All steps happen on Day 0 (no waiting):
     ///
     ///   Restaker Safe (0x2aCA71):
-    ///     TX 1: EtherFiRestaker.depositIntoStrategy(stETH, 100 ETH)
+    ///     TX 1: EtherFiRestaker.depositIntoStrategy(stETH, 100k ETH)
     ///     TX 2: EtherFiRestaker.delegateTo(operator17)
     ///
     ///   Off-chain:
@@ -185,11 +188,11 @@ contract EigenDAOperator17RegistrationTest is Test, CryptoTestHelper {
         // ════════════════════════════════════════════════════════════════
         //  TX 1: Deposit stETH (Restaker Safe -- direct)
         // ════════════════════════════════════════════════════════════════
-        emit log("--- TX 1: EtherFiRestaker.depositIntoStrategy(stETH, 100 ETH) ---");
+        emit log("--- TX 1: EtherFiRestaker.depositIntoStrategy(stETH, 100k ETH) ---");
         emit log_named_address("Called by: Restaker Safe", RESTAKER_SAFE);
 
         vm.prank(RESTAKER_SAFE);
-        uint256 shares = RESTAKER.depositIntoStrategy(address(STETH), 100 ether);
+        uint256 shares = RESTAKER.depositIntoStrategy(address(STETH), DEPOSIT_AMOUNT);
         emit log_named_uint("Strategy shares received", shares);
 
         // ════════════════════════════════════════════════════════════════
@@ -306,11 +309,11 @@ contract EigenDAOperator17RegistrationTest is Test, CryptoTestHelper {
         (uint256 operatorId,,,) = _loadRegistrationInput();
         address operatorAddr = _operatorAddr(operatorId);
 
-        // TX 1 calldata: depositIntoStrategy(stETH, 100 ETH)
+        // TX 1 calldata: depositIntoStrategy(stETH, 100k ETH)
         bytes memory tx1Data = abi.encodeWithSignature(
             "depositIntoStrategy(address,uint256)",
             address(STETH),
-            150000 ether
+            DEPOSIT_AMOUNT
         );
 
         // TX 2 calldata: delegateTo(operator17, emptySig, 0x0)
@@ -342,7 +345,7 @@ contract EigenDAOperator17RegistrationTest is Test, CryptoTestHelper {
             '  "createdAt": ', vm.toString(block.timestamp), ',\n',
             '  "meta": {\n',
             '    "name": "eigenda-operator-17-deposit-delegate",\n',
-            '    "description": "Deposit 100 stETH into EL strategy and delegate to operator 17"\n',
+            '    "description": "Deposit 100k stETH into EL strategy and delegate to operator 17"\n',
             '  },\n',
             '  "transactions": [\n',
             '    {\n',
@@ -371,7 +374,7 @@ contract EigenDAOperator17RegistrationTest is Test, CryptoTestHelper {
         emit log("");
         emit log_named_address("Import into Restaker Safe", RESTAKER_SAFE);
         emit log_named_address("Operator 17 contract", operatorAddr);
-        emit log_named_uint("Deposit amount (ETH)", 100);
+        emit log_named_uint("Deposit amount (ETH)", DEPOSIT_AMOUNT / 1e18);
 
         // Verify the batch works by executing it
         vm.prank(RESTAKER_SAFE);
