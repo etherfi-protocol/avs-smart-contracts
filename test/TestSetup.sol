@@ -6,10 +6,12 @@ import "forge-std/Test.sol";
 
 import "../src/AvsOperator.sol";
 import "../src/AvsOperatorManager.sol";
+import "./MockRoleRegistry.sol";
 
 contract TestSetup is Test {
 
     AvsOperatorManager avsOperatorManager;
+    MockRoleRegistry roleRegistry;
 
     address admin;
     address operatorOneRunner;
@@ -18,12 +20,15 @@ contract TestSetup is Test {
     IBLSApkRegistry.PubkeyRegistrationParams samplePubkeyRegistrationParams;
     ISignatureUtils.SignatureWithSaltAndExpiry sampleRegistrationSignature;
 
-    function setUp() public {
+    function setUp() public virtual {
         admin = vm.addr(0x9876543210);
         vm.startPrank(admin);
 
+        // deploy role registry first — manager constructor needs it
+        roleRegistry = new MockRoleRegistry(admin);
+
         // deploy manager
-        AvsOperatorManager avsOperatorManagerImpl = new AvsOperatorManager();
+        AvsOperatorManager avsOperatorManagerImpl = new AvsOperatorManager(address(roleRegistry));
         ERC1967Proxy avvsOperatorManagerProxy = new ERC1967Proxy(address(avsOperatorManagerImpl), "");
         avsOperatorManager = AvsOperatorManager(address(avvsOperatorManagerProxy));
 
@@ -32,6 +37,9 @@ contract TestSetup is Test {
         address delegationManager = address(0x1234); // TODO
         address avsDirectory = address(0x1235); // TODO
         avsOperatorManager.initialize(delegationManager, avsDirectory, address(avsOperatorImpl));
+
+        roleRegistry.grantRole(avsOperatorManager.AVS_OPERATOR_MANAGER_ADMIN_ROLE(), admin);
+        roleRegistry.grantRole(roleRegistry.PROTOCOL_PAUSER(), admin);
 
         // deploy a couple operators
         avsOperatorManager.instantiateEtherFiAvsOperator(2);
@@ -93,18 +101,22 @@ contract TestSetup is Test {
     function upgradeAvsContracts() internal {
         vm.startPrank(avsOperatorManager.owner());
 
+        // RoleRegistry is now immutable on the implementation. Deploy a fresh mock for the upgrade.
+        roleRegistry = new MockRoleRegistry(avsOperatorManager.owner());
+
         // original version was deployed with an older version of UUPS upgradeable
         // I can can use the new version after the first upgrade
-        //avsOperatorManager.upgradeToAndCall(address(new AvsOperatorManager()), "");
+        //avsOperatorManager.upgradeToAndCall(address(new AvsOperatorManager(address(roleRegistry))), "");
 
         bytes4 selector = bytes4(keccak256(bytes("upgradeTo(address)")));
-        bytes memory data = abi.encodeWithSelector(selector, address(new AvsOperatorManager()));
+        bytes memory data = abi.encodeWithSelector(selector, address(new AvsOperatorManager(address(roleRegistry))));
         (bool success, ) = address(avsOperatorManager).call(data);
         require(success, "Call failed");
 
         avsOperatorManager.upgradeEtherFiAvsOperator(address(new AvsOperator()));
 
-        avsOperatorManager.updateAdmin(admin, true);
+        roleRegistry.grantRole(avsOperatorManager.AVS_OPERATOR_MANAGER_ADMIN_ROLE(), admin);
+        roleRegistry.grantRole(roleRegistry.PROTOCOL_PAUSER(), admin);
 
         vm.stopPrank();
     }
