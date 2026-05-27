@@ -38,8 +38,8 @@ contract TestSetup is Test {
         address avsDirectory = address(0x1235); // TODO
         avsOperatorManager.initialize(delegationManager, avsDirectory, address(avsOperatorImpl));
 
-        roleRegistry.grantRole(avsOperatorManager.AVS_OPERATOR_MANAGER_ADMIN_ROLE(), admin);
-        roleRegistry.grantRole(roleRegistry.PROTOCOL_PAUSER(), admin);
+        roleRegistry.grantRole(roleRegistry.OPERATING_MULTISIG(), admin);
+        roleRegistry.grantRole(roleRegistry.OPERATING_MULTISIG(), avsOperatorManager.owner());
 
         // deploy a couple operators
         avsOperatorManager.instantiateEtherFiAvsOperator(2);
@@ -115,8 +115,7 @@ contract TestSetup is Test {
 
         avsOperatorManager.upgradeEtherFiAvsOperator(address(new AvsOperator()));
 
-        roleRegistry.grantRole(avsOperatorManager.AVS_OPERATOR_MANAGER_ADMIN_ROLE(), admin);
-        roleRegistry.grantRole(roleRegistry.PROTOCOL_PAUSER(), admin);
+        roleRegistry.grantRole(roleRegistry.OPERATING_MULTISIG(), admin);
 
         vm.stopPrank();
     }

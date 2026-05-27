@@ -31,9 +31,9 @@ contract SlashingKillSwitchTest is TestSetup {
         pauserOnly = vm.addr(0xCAFE);
         randomUser = vm.addr(0xBEEF);
 
-        // pauserOnly holds PROTOCOL_PAUSER but not the admin role.
+        // pauserOnly holds OPERATING_MULTISIG but not the admin role.
         vm.prank(admin);
-        roleRegistry.grantRole(roleRegistry.PROTOCOL_PAUSER(), pauserOnly);
+        roleRegistry.grantRole(roleRegistry.OPERATING_MULTISIG(), pauserOnly);
     }
 
     function _seedSelectorAndAllow(uint256 operatorId, address target, bytes4 selector, uint16 offset) internal {
@@ -180,7 +180,7 @@ contract SlashingKillSwitchTest is TestSetup {
 
     function test_admin_cannotFlipGlobalFlag_withoutPauserRole() public {
         vm.prank(admin);
-        roleRegistry.revokeRole(roleRegistry.PROTOCOL_PAUSER(), admin);
+        roleRegistry.revokeRole(roleRegistry.OPERATING_MULTISIG(), admin);
 
         vm.prank(admin);
         vm.expectRevert(AvsOperatorManager.IncorrectRole.selector);

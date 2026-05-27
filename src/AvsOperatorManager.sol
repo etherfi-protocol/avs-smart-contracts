@@ -64,9 +64,6 @@ contract AvsOperatorManager is
     /// @notice Per-AVS surgical block. Add-only (no removal). Independent of the global flag.
     mapping(address => bool) public isSlashingRegistrationDisabledForAvs;
 
-    /// @notice Identifies the etherfi AVS operator manager admin role within `roleRegistry`.
-    bytes32 public constant AVS_OPERATOR_MANAGER_ADMIN_ROLE = keccak256("AVS_OPERATOR_MANAGER_ADMIN_ROLE");
-
     //--------------------------------------------------------------------------------------
     //----------------------------------  Events / Errors  ---------------------------------
     //--------------------------------------------------------------------------------------
@@ -194,9 +191,9 @@ contract AvsOperatorManager is
     //--------------------------------------------------------------------------------------
 
     /// @notice One-way: flip the global slashing-registration kill switch ON. Cannot be reversed.
-    /// @dev Caller must hold `PROTOCOL_PAUSER` in the configured RoleRegistry.
+    /// @dev Caller must hold `OPERATING_MULTISIG` in the configured RoleRegistry.
     function disableSlashingRegistration() external {
-        if (!roleRegistry.hasRole(roleRegistry.PROTOCOL_PAUSER(), msg.sender)) revert IncorrectRole();
+        roleRegistry.onlyOperatingMultisig(msg.sender);
         if (slashingRegistrationDisabled) revert SlashingAlreadyDisabled();
 
         slashingRegistrationDisabled = true;
@@ -331,12 +328,12 @@ contract AvsOperatorManager is
     //--------------------------------------------------------------------------------------
 
     function _onlyAdmin() internal view {
-        if (!roleRegistry.hasRole(AVS_OPERATOR_MANAGER_ADMIN_ROLE, msg.sender)) revert IncorrectRole();
+        roleRegistry.onlyOperatingMultisig(msg.sender);
     }
 
     function _onlyOperator(uint256 _id) internal view {
         if (msg.sender == avsOperators[_id].avsNodeRunner()) return;
-        if (!roleRegistry.hasRole(AVS_OPERATOR_MANAGER_ADMIN_ROLE, msg.sender)) revert IncorrectRole();
+        roleRegistry.onlyOperatingMultisig(msg.sender);
     }
 
     modifier onlyAdmin() {
