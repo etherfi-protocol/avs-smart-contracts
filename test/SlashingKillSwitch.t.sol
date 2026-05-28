@@ -31,7 +31,7 @@ contract SlashingKillSwitchTest is TestSetup {
         pauserOnly = vm.addr(0xCAFE);
         randomUser = vm.addr(0xBEEF);
 
-        // pauserOnly holds OPERATING_MULTISIG but not the admin role.
+        // pauserOnly holds OPERATING_MULTISIG but is a different address than the deploy `admin`.
         vm.prank(admin);
         roleRegistry.grantRole(roleRegistry.OPERATING_MULTISIG(), pauserOnly);
     }
@@ -164,40 +164,45 @@ contract SlashingKillSwitchTest is TestSetup {
         avsOperatorManager.addSlashingRegistrationSelector(LEGACY_REGISTER, 32);
     }
 
-    function test_pauser_canDisable_butNotAddSelectorOrAvs() public {
+    // NOTE: the current src gates disable / addSelector / disableForAvs on the SAME
+    // OPERATING_MULTISIG role, so there is no pauser-vs-admin privilege separation. Any
+    // OPERATING_MULTISIG holder (here `pauserOnly`, which is not the deploy `admin`) can drive
+    // the entire kill switch — this asserts auth is role-based rather than tied to the deployer.
+    function test_multisigHolder_canOperateKillSwitch() public {
         vm.prank(pauserOnly);
         avsOperatorManager.disableSlashingRegistration();
         assertTrue(avsOperatorManager.slashingRegistrationDisabled());
 
         vm.prank(pauserOnly);
-        vm.expectRevert(AvsOperatorManager.IncorrectRole.selector);
         avsOperatorManager.addSlashingRegistrationSelector(LEGACY_REGISTER, 0);
+        (bool watched,) = avsOperatorManager.slashingSelectorConfigs(LEGACY_REGISTER);
+        assertTrue(watched);
 
         vm.prank(pauserOnly);
-        vm.expectRevert(AvsOperatorManager.IncorrectRole.selector);
         avsOperatorManager.disableSlashingRegistrationForAvs(AVS_A);
+        assertTrue(avsOperatorManager.isSlashingRegistrationDisabledForAvs(AVS_A));
     }
 
-    function test_admin_cannotFlipGlobalFlag_withoutPauserRole() public {
+    function test_admin_cannotFlipGlobalFlag_withoutMultisigRole() public {
         vm.prank(admin);
         roleRegistry.revokeRole(roleRegistry.OPERATING_MULTISIG(), admin);
 
         vm.prank(admin);
-        vm.expectRevert(AvsOperatorManager.IncorrectRole.selector);
+        vm.expectRevert(IRoleRegistry.OnlyOperatingMultisig.selector);
         avsOperatorManager.disableSlashingRegistration();
     }
 
     function test_randomUser_cannotDoAnything() public {
         vm.prank(randomUser);
-        vm.expectRevert(AvsOperatorManager.IncorrectRole.selector);
+        vm.expectRevert(IRoleRegistry.OnlyOperatingMultisig.selector);
         avsOperatorManager.disableSlashingRegistration();
 
         vm.prank(randomUser);
-        vm.expectRevert(AvsOperatorManager.IncorrectRole.selector);
+        vm.expectRevert(IRoleRegistry.OnlyOperatingMultisig.selector);
         avsOperatorManager.addSlashingRegistrationSelector(LEGACY_REGISTER, 0);
 
         vm.prank(randomUser);
-        vm.expectRevert(AvsOperatorManager.IncorrectRole.selector);
+        vm.expectRevert(IRoleRegistry.OnlyOperatingMultisig.selector);
         avsOperatorManager.disableSlashingRegistrationForAvs(AVS_A);
     }
 

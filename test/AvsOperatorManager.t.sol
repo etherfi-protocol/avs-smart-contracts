@@ -96,7 +96,7 @@ contract EtherFiAvsOperatorsManagerTest is TestSetup, CryptoTestHelper {
         // shouldn't be able to forward if they are not the registered runner for this operator
         bytes memory args = hex"12345678";
         vm.prank(operatorTwoRunner);
-        vm.expectRevert(AvsOperatorManager.IncorrectRole.selector);
+        vm.expectRevert(IRoleRegistry.OnlyOperatingMultisig.selector);
         avsOperatorManager.forwardOperatorCall(operatorId, target, selector, args);
 
         // this particular call hasn't been whitelisted
@@ -106,7 +106,7 @@ contract EtherFiAvsOperatorsManagerTest is TestSetup, CryptoTestHelper {
 
         // only admin can update the whitelist
         vm.prank(operatorOneRunner);
-        vm.expectRevert(AvsOperatorManager.IncorrectRole.selector);
+        vm.expectRevert(IRoleRegistry.OnlyOperatingMultisig.selector);
         avsOperatorManager.updateAllowedOperatorCalls(operatorId, target, selector, true);
 
         // update the whitelist
