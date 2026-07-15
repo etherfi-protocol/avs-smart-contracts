@@ -13,7 +13,8 @@ contract DeployAvsContracts is Script {
     function run() public {
 
         vm.startBroadcast(address(0xf8a86ea1Ac39EC529814c377Bd484387D395421e));
-        address newManagerImpl = address(new AvsOperatorManager());
+        address roleRegistry = vm.envAddress("ROLE_REGISTRY");
+        address newManagerImpl = address(new AvsOperatorManager(roleRegistry));
         address newOperatorImpl = address(new AvsOperator());
 
         console2.log("New manager:", newManagerImpl);
